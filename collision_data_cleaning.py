@@ -49,6 +49,6 @@ print(filtered_columns.shape)
 print(filtered_columns.isna().sum())
 
 #CONVERT FINAL DATAFRAME TO CSV
-filtered_columns.to_csv('Motor_Vehicle_Collisions_2021-2025')
+filtered_columns.to_csv('Motor_Vehicle_Collisions_2021-2025.csv', index=False)
 
 

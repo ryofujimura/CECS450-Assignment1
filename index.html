@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Line Chart Race with Vehicle Collisions</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .line {
+      fill: none;
+      stroke-width: 3px;
+      cursor: pointer;
+    }
+    .legend {
+      font-size: 14px;
+    }
+    .tooltip {
+      position: absolute;
+      background-color: white;
+      padding: 6px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 13px;
+      box-shadow: 0 0 5px #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h2>Vehicle Collisions Line Chart Race by Year</h2>
+  <div id="chart"></div>
+  <div id="legend"></div>
+
+  <script src="main.js"></script>
+</body>
+</html>

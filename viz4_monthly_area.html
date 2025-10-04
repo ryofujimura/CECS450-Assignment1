@@ -10,7 +10,7 @@
 const svg = d3.select("#chart")
   .append("svg")
   .attr("width", 800)
-  .attr("height", 400);
+  .attr("height", 450);
 
 // Simulate full collision dataset by month
 const monthlyData = [];
@@ -29,7 +29,7 @@ const chartData = Array.from({length: 12}, (_, i) => ({
   count: monthlyCounts.get(i + 1) || 0
 }));
 
-const xScale = d3.scaleLinear().domain([1, 12]).range([50, 750]);
+const xScale = d3.scaleLinear().domain([1, 12]).range([50, 700]);
 const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([350, 50]);
 const area = d3.area()
   .x(d => xScale(d.month))
@@ -59,6 +59,13 @@ chartData.forEach(d => {
 
 svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
 svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Monthly Collisions (Full Dataset Sample)");
+
+// Legend
+const legend = svg.append("g").attr("transform", "translate(650, 100)");
+legend.append("rect").attr("width", 130).attr("height", 80).attr("fill", "white").attr("stroke", "gray");
+legend.append("text").attr("x", 10).attr("y", 20).text("Pattern Notes:").attr("font-weight", "bold");
+legend.append("text").attr("x", 10).attr("y", 40).text("• Summer peak months");
+legend.append("text").attr("x", 10).attr("y", 60).text("• Holiday season spikes");
 </script>
 </body>
 </html>

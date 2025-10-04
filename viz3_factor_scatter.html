@@ -10,7 +10,7 @@
 const svg = d3.select("#chart")
   .append("svg")
   .attr("width", 800)
-  .attr("height", 400);
+  .attr("height", 450);
 
 // Simulate full collision dataset timeline
 const factors = ['Driver Inattention/Distraction', 'Alcohol Involvement', 'Unsafe Speed', 'Following Too Closely', 'Traffic Control Disregarded'];
@@ -22,17 +22,18 @@ for (let i = 0; i < 8000; i++) {
   const month = Math.floor(Math.random() * 12) + 1;
   const day = Math.floor(Math.random() * 28) + 1;
   const date = new Date(year, month - 1, day);
+  const factor = factors[Math.floor(Math.random() * factors.length)];
   
   processedData.push({
     date: date,
-    factor: factors[Math.floor(Math.random() * factors.length)],
-    y: Math.random() * 300 + 50
+    factor: factor,
+    y: Math.random() * 250 + 100
   });
 }
 
 const xScale = d3.scaleTime()
   .domain([d3.min(processedData, d => d.date), d3.max(processedData, d => d.date)])
-  .range([50, 750]);
+  .range([50, 720]);
 const yScale = d3.scaleLinear().domain([0, 400]).range([350, 50]);
 const color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -51,6 +52,24 @@ processedData.forEach((d, i) => {
 
 svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale));
 svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Crash Factors Over Time (Full Dataset Sample)");
+
+// Legend
+const legend = svg.append("g").attr("transform", "translate(650, 100)");
+legend.append("rect").attr("width", 140).attr("height", factors.length * 20 + 30).attr("fill", "white").attr("stroke", "gray");
+legend.append("text").attr("x", 10).attr("y", 20).text("Crash Factors:").attr("font-weight", "bold");
+
+factors.forEach((factor, i) => {
+  legend.append("circle")
+    .attr("cx", 15)
+    .attr("cy", 30 + i * 20)
+    .attr("r", 4)
+    .attr("fill", color(factor));
+  legend.append("text")
+    .attr("x", 30)
+    .attr("y", 35 + i * 20)
+    .text(factor.replace(' ', '\n'))
+    .attr("font-size", "10px");
+});
 </script>
 </body>
 </html>

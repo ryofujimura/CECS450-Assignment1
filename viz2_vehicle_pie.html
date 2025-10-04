@@ -10,7 +10,7 @@
 const svg = d3.select("#chart")
   .append("svg")
   .attr("width", 800)
-  .attr("height", 400);
+  .attr("height", 450);
 
 // Simulate full collision dataset with vehicle types
 const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
@@ -62,6 +62,24 @@ arcs.append("text")
   .style("opacity", 1);
 
 svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Vehicle Types (Full Dataset Sample)");
+
+// Legend
+const legend = svg.append("g").attr("transform", "translate(650, 100)");
+legend.append("rect").attr("width", 140).attr("height", chartData.length * 20 + 30).attr("fill", "white").attr("stroke", "gray");
+legend.append("text").attr("x", 10).attr("y", 20).text("Vehicle Types:").attr("font-weight", "bold");
+
+chartData.forEach((d, i) => {
+  legend.append("rect")
+    .attr("x", 10)
+    .attr("y", 30 + i * 20)
+    .attr("width", 12)
+    .attr("height", 12)
+    .attr("fill", color(i));
+  legend.append("text")
+    .attr("x", 30)
+    .attr("y", 40 + i * 20)
+    .text(`${d.type}: ${d.count}`);
+});
 </script>
 </body>
 </html>

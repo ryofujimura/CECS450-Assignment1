@@ -10,7 +10,7 @@
 const svg = d3.select("#chart")
   .append("svg")
   .attr("width", 800)
-  .attr("height", 400);
+  .attr("height", 450);
 
 // Simulate full collision dataset (380kHz representative sample)
 const timeData = [];
@@ -32,7 +32,7 @@ const hourlyCounts = d3.rollup(timeData, v => v.length, d => d.time);
 const chartData = Array.from(hourlyCounts).map(([hour, count]) => ({ hour, count })).sort((a,b) => a.hour - b.hour);
 
 const xScale = d3.scaleBand().domain(d3.range(24)).range([50, 750]).padding(0.1);
-const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([350, 50]);
+const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([320, 80]);
 
 chartData.forEach((d, i) => {
   setTimeout(() => {
@@ -50,9 +50,17 @@ chartData.forEach((d, i) => {
   }, i * 50);
 });
 
-svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale));
+svg.append("g").attr("transform", "translate(0,320)").call(d3.axisBottom(xScale));
 svg.append("g").attr("transform", "translate(50,0)").call(d3.axisLeft(yScale));
 svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Collisions by Hour (Full Dataset Sample)");
+
+// Legend
+const legend = svg.append("g").attr("transform", "translate(650, 100)");
+legend.append("rect").attr("width", 120).attr("height", 100).attr("fill", "white").attr("stroke", "gray");
+legend.append("text").attr("x", 10).attr("y", 20).text("Data Scale:").attr("font-weight", "bold");
+legend.append("text").attr("x", 10).attr("y", 40).text("• 5,000 records");
+legend.append("text").attr("x", 10).attr("y", 60).text("• 2020-2024 span");
+legend.append("text").attr("x", 10).attr("y", 80).text("• Peak: Rush hours");
 </script>
 </body>
 </html>

@@ -325,7 +325,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
           group.style("opacity", 1);
         });
         
-        // Show overview of all vehicles
+        // Show overview of all vehicles with proper formatting
         const totalCounts = [];
         processedData.forEach(vehicleGroup => {
           const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
@@ -334,13 +334,12 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         
         infoContent.text("All Vehicle Types (Total)");
         
+        // Format vehicle list with each vehicle on separate line
         let text = "";
-        totalCounts.slice(0, 6).forEach(count => {
+        totalCounts.forEach(count => {
           text += `${count}\n`;
         });
-        if (totalCounts.length > 6) {
-          text += `... and ${totalCounts.length - 6} more`;
-        }
+        
         infoDetails.text(text);
       }
 

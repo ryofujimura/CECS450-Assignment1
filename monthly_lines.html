@@ -29,325 +29,333 @@ const svg = d3.select("#chart")
 const tooltip = d3.select("body").append("div")
   .attr("class", "tooltip");
 
-// Generate comprehensive collision data representing full dataset
-const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const years = [2020, 2021, 2022, 2023, 2024];
-
-// Create realistic monthly patterns for each vehicle type
-const seasonalPatterns = {
-  'Sedan': [1200, 1100, 1200, 1300, 1400, 1500, 1600, 1550, 1400, 1300, 1200, 1250],
-  'Station Wagon/Sport Utility Vehicle': [1000, 900, 1000, 1100, 1200, 1300, 1400, 1350, 1200, 1100, 1000, 1050],
-  'Taxi': [1500, 1400, 1450, 1400, 1350, 1300, 1250, 1300, 1350, 1400, 1450, 1500],
-  'Box Truck': [800, 750, 800, 900, 1000, 1100, 1200, 1150, 1000, 900, 800, 850],
-  'Bike': [200, 250, 400, 600, 800, 900, 950, 900, 600, 400, 250, 200],
-  'Bus': [300, 280, 320, 350, 380, 400, 420, 410, 360, 340, 300, 310],
-  'Motorcycle': [150, 200, 350, 500, 700, 900, 1100, 1000, 700, 500, 250, 180],
-  'Van': [400, 380, 420, 450, 480, 520, 550, 540, 490, 460, 420, 410]
-};
-
-// Generate aggregated monthly collision data for each vehicle type
-const monthlyData = [];
-vehicleTypes.forEach(vehicleType => {
-  const basePattern = seasonalPatterns[vehicleType];
-  basePattern.forEach((baseCount, monthIndex) => {
-    years.forEach(year => {
-      const yearMultiplier = year === 2020 ? 1.0 : year === 2021 ? 0.9 : year === 2022 ? 1.1 : year === 2023 ? 1.2 : 0.95;
-      const finalCount = Math.floor(baseCount * yearMultiplier + (Math.random() - 0.5) * 100);
-      monthlyData.push({
-        month: monthIndex + 1,
-        monthName: months[monthIndex],
+// Load actual CSV data
+fetch('Motor_Vehicle_Collisions_2020-2024.csv')
+  .then(response => response.text())
+  .then(text => {
+    const csvData = d3.csvParse(text);
+    
+    // Extract unique vehicle types and months from actual data
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Get vehicle types from CSV (limit to most common ones for readability)
+    const vehicleTypeCounts = d3.rollup(csvData, v => v.length, d => d['VEHICLE TYPE CODE 1']);
+    const sortedVehicleTypes = Array.from(vehicleTypeCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8) // Top 8 most common vehicle types
+      .map(d => d[0]);
+    
+    // Process real collision data
+    const monthlyData = [];
+    csvData.forEach(d => {
+      const monthNum = parseInt(d['MONTH']);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        monthlyData.push({
+          month: monthNum,
+          monthName: months[monthNum - 1],
+          vehicleType: d['VEHICLE TYPE CODE 1'],
+          year: parseInt(d['YEAR']),
+          count: 1
+        });
+      }
+    });
+    
+    // Aggregate data by vehicle type and month (sum across years)
+    const aggregatedData = d3.rollup(
+      monthlyData,
+      v => v.length, // Count collisions
+      d => d.vehicleType,
+      d => d.month
+    );
+    
+    const processedData = [];
+    sortedVehicleTypes.forEach(vehicleType => {
+      const vehicleData = [];
+      months.forEach((month, i) => {
+        const count = aggregatedData.get(vehicleType)?.get(i + 1) || 0;
+        vehicleData.push({ month: i + 1, monthName: month, count: count });
+      });
+      processedData.push({
         vehicleType: vehicleType,
-        year: year,
-        count: Math.max(0, finalCount)
+        values: vehicleData
       });
     });
-  });
-});
-
-// Aggregate data by vehicle type and month
-const aggregatedData = d3.rollup(
-  monthlyData,
-  v => d3.sum(v, d => d.count),
-  d => d.vehicleType,
-  d => d.month
-);
-
-const processedData = [];
-vehicleTypes.forEach(vehicleType => {
-  const vehicleData = [];
-  months.forEach((month, i) => {
-    const count = aggregatedData.get(vehicleType)?.get(i + 1) || 0;
-    vehicleData.push({ month: i + 1, monthName: month, count: count });
-  });
-  processedData.push({
-    vehicleType: vehicleType,
-    values: vehicleData
-  });
-});
-
-// Scales
-const xScale = d3.scaleLinear().domain([1, 12]).range([250, 600]);
-const yScale = d3.scaleLinear().domain([0, d3.max(processedData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
-
-// Color scale
-const color = d3.scaleOrdinal(d3.schemeCategory10).domain(vehicleTypes);
-
-// Add axes
-svg.append("g")
-  .attr("transform", "translate(0,500)")
-  .call(d3.axisBottom(xScale).tickFormat((d,i) => months[i]));
-
-svg.append("g")
-  .attr("transform", "translate(250,0)")
-  .call(d3.axisLeft(yScale));
-
-// Title
-svg.append("text")
-  .attr("x", 425)
-  .attr("y", 40)
-  .attr("text-anchor", "middle")
-  .attr("font-size", "18px")
-  .attr("font-weight", "bold")
-  .text("Monthly Collision Patterns by Vehicle Type");
-
-// Labels
-svg.append("text")
-  .attr("transform", "rotate(-90)")
-  .attr("y", 30)
-  .attr("x", -300)
-  .attr("text-anchor", "middle")
-  .text("Collision Count");
-
-svg.append("text")
-  .attr("x", 425)
-  .attr("y", 580)
-  .attr("text-anchor", "middle")
-  .text("Month");
-
-// Line generator
-const line = d3.line()
-  .x(d => xScale(d.month))
-  .y(d => yScale(d.count))
-  .curve(d3.curveMonotoneX);
-
-// Create lines for each vehicle type with animation and hover effects
-const lineGroups = [];
-processedData.forEach((vehicleGroup, index) => {
-  setTimeout(() => {
-    const group = svg.append("g").attr("class", `vehicle-group-${index}`);
     
-    const path = group.append("path")
-      .datum(vehicleGroup.values)
-      .attr("d", line)
-      .attr("stroke", color(vehicleGroup.vehicleType))
-      .attr("stroke-width", 3)
-      .attr("fill", "none")
-      .style("opacity", 0)
-      .style("cursor", "pointer")
-      .on("mouseover", function() {
-        highlightVehicle(vehicleGroup.vehicleType);
-      })
-      .on("mouseout", function() {
-        resetHighlights();
+    initializeChart();
+    
+    function initializeChart() {
+      // Scales
+      const xScale = d3.scaleLinear().domain([1, 12]).range([250, 600]);
+      const yScale = d3.scaleLinear().domain([0, d3.max(processedData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
+
+      // Color scale
+      const color = d3.scaleOrdinal(d3.schemeCategory10).domain(sortedVehicleTypes);
+
+      // Add axes
+      svg.append("g")
+        .attr("transform", "translate(0,500)")
+        .call(d3.axisBottom(xScale).tickFormat((d,i) => months[i]));
+
+      svg.append("g")
+        .attr("transform", "translate(250,0)")
+        .call(d3.axisLeft(yScale));
+
+      // Title
+      svg.append("text")
+        .attr("x", 425)
+        .attr("y", 40)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "18px")
+        .attr("font-weight", "bold")
+        .text("Monthly Collision Patterns by Vehicle Type");
+
+      // Labels
+      svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 30)
+        .attr("x", -300)
+        .attr("text-anchor", "middle")
+        .text("Collision Count");
+
+      svg.append("text")
+        .attr("x", 425)
+        .attr("y", 580)
+        .attr("text-anchor", "middle")
+        .text("Month");
+
+      // Line generator
+      const line = d3.line()
+        .x(d => xScale(d.month))
+        .y(d => yScale(d.count))
+        .curve(d3.curveMonotoneX);
+
+      // Create lines for each vehicle type with animation and hover effects
+      const lineGroups = [];
+      processedData.forEach((vehicleGroup, index) => {
+        setTimeout(() => {
+          const group = svg.append("g").attr("class", `vehicle-group-${index}`);
+          
+          const path = group.append("path")
+            .datum(vehicleGroup.values)
+            .attr("d", line)
+            .attr("stroke", color(vehicleGroup.vehicleType))
+            .attr("stroke-width", 3)
+            .attr("fill", "none")
+            .style("opacity", 0)
+            .style("cursor", "pointer")
+            .on("mouseover", function() {
+              highlightVehicle(vehicleGroup.vehicleType);
+            })
+            .on("mouseout", function() {
+              resetHighlights();
+            });
+          
+          lineGroups.push(group);
+
+          // Animate the line drawing
+          const totalLength = path.node().getTotalLength();
+          path
+            .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+            .attr("stroke-dashoffset", totalLength)
+            .style("opacity", 1)
+            .transition()
+            .duration(1500)
+            .delay(index * 200)
+            .attr("stroke-dashoffset", 0);
+
+          // Add interactive circles for each data point
+          vehicleGroup.values.forEach((point, pointIndex) => {
+            setTimeout(() => {
+              group.append("circle")
+                .attr("cx", xScale(point.month))
+                .attr("cy", yScale(point.count))
+                .attr("r", 0)
+                .attr("fill", color(vehicleGroup.vehicleType))
+                .transition()
+                .duration(300)
+                .delay(1500 + index * 200 + pointIndex * 100)
+                .attr("r", 5)
+                .style("cursor", "pointer")
+                .on("mouseover", function(event) {
+                  highlightVehicle(vehicleGroup.vehicleType);
+                  tooltip.transition().duration(200).style("opacity", 1);
+                  tooltip.html(`
+                    <strong>${vehicleGroup.vehicleType}</strong><br/>
+                    Month: ${point.monthName}<br/>
+                    Collisions: ${point.count}
+                  `)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY - 30) + "px");
+                })
+                .on("mousemove", function(event) {
+                  tooltip
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 30) + "px");
+                })
+                .on("mouseout", function() {
+                  resetHighlights();
+                  tooltip.transition().duration(200).style("opacity", 0);
+                });
+            }, 0);
+          });
+
+        }, index * 200);
       });
-    
-    lineGroups.push(group);
 
-    // Animate the line drawing
-    const totalLength = path.node().getTotalLength();
-    path
-      .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
-      .attr("stroke-dashoffset", totalLength)
-      .style("opacity", 1)
-      .transition()
-      .duration(1500)
-      .delay(index * 200)
-      .attr("stroke-dashoffset", 0);
+      // Left Legend - Fibonacci hierarchy design
+      const legend = svg.append("g").attr("transform", "translate(20, 120)");
+      legend.append("rect").attr("width", 200).attr("height", 360).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", "1px");
 
-    // Add interactive circles for each data point
-    vehicleGroup.values.forEach((point, pointIndex) => {
-      setTimeout(() => {
-        group.append("circle")
-          .attr("cx", xScale(point.month))
-          .attr("cy", yScale(point.count))
-          .attr("r", 0)
-          .attr("fill", color(vehicleGroup.vehicleType))
-          .transition()
-          .duration(300)
-          .delay(1500 + index * 200 + pointIndex * 100)
-          .attr("r", 5)
-          .style("cursor", "pointer")
-          .on("mouseover", function(event) {
-            highlightVehicle(vehicleGroup.vehicleType);
-            tooltip.transition().duration(200).style("opacity", 1);
-            tooltip.html(`
-              <strong>${vehicleGroup.vehicleType}</strong><br/>
-              Month: ${point.monthName}<br/>
-              Collisions: ${point.count}
-            `)
-            .style("left", (event.pageX + 10) + "px")
-            .style("top", (event.pageY - 30) + "px");
-          })
-          .on("mousemove", function(event) {
-            tooltip
-              .style("left", (event.pageX + 10) + "px")
-              .style("top", (event.pageY - 30) + "px");
+      // Main title with large hierarchy
+      legend.append("text")
+        .attr("x", 10)
+        .attr("y", 30)
+        .attr("font-size", "21px")
+        .attr("font-weight", "bold")
+        .text("Vehicle Types");
+
+      // Subtitle with medium hierarchy  
+      legend.append("text")
+        .attr("x", 10)
+        .attr("y", 55)
+        .attr("font-size", "13px")
+        .attr("fill", "#666")
+        .text("Click to highlight");
+
+      sortedVehicleTypes.forEach((vehicleType, i) => {
+        const legendGroup = legend.append("g")
+          .attr("class", `legend-item-${i}`)
+          .style("cursor", "pointer");
+
+        // Line indicator
+        legendGroup.append("line")
+          .attr("x1", 10)
+          .attr("y1", 75 + i * 30)
+          .attr("x2", 25)
+          .attr("y2", 75 + i * 30)
+          .attr("stroke", color(vehicleType))
+          .attr("stroke-width", "3px");
+
+        // Vehicle type name with body hierarchy
+        legendGroup.append("text")
+          .attr("x", 35)
+          .attr("y", 80 + i * 30)
+          .attr("font-size", "13px")
+          .attr("font-weight", "normal")
+          .text(vehicleType);
+
+        // Hover area
+        legendGroup.append("rect")
+          .attr("x", 5)
+          .attr("y", 65 + i * 30)
+          .attr("width", 190)
+          .attr("height", 30)
+          .attr("fill", "transparent")
+          .on("mouseover", function() {
+            highlightVehicle(vehicleType);
           })
           .on("mouseout", function() {
             resetHighlights();
-            tooltip.transition().duration(200).style("opacity", 0);
           });
-      }, 0);
-    });
+      });
 
-  }, index * 200);
-});
+      // Right Info Box - Fibonacci hierarchy design
+      const infoBox = svg.append("g").attr("transform", "translate(780, 120)");
+      const infoRect = infoBox.append("rect")
+        .attr("width", 200)
+        .attr("height", 360)
+        .attr("fill", "white")
+        .attr("stroke", "gray")
+        .attr("stroke-width", "1px");
 
-// Left Legend - Fibonacci hierarchy design
-const legend = svg.append("g").attr("transform", "translate(20, 120)");
-legend.append("rect").attr("width", 200).attr("height", 360).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", "1px");
+      // Main title with large hierarchy
+      const infoTitle = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 30)
+        .attr("font-size", "21px")
+        .attr("font-weight", "bold")
+        .text("Collision Stats");
 
-// Main title with large hierarchy
-legend.append("text")
-  .attr("x", 10)
-  .attr("y", 30)
-  .attr("font-size", "21px")
-  .attr("font-weight", "bold")
-  .text("Vehicle Types");
+      // Subtitle with medium hierarchy
+      infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 55)
+        .attr("font-size", "13px")
+        .attr("fill", "#666")
+        .text("Monthly Overview");
 
-// Subtitle with medium hierarchy  
-legend.append("text")
-  .attr("x", 10)
-  .attr("y", 55)
-  .attr("font-size", "13px")
-  .attr("fill", "#666")
-  .text("Click to highlight");
+      // Main content area
+      const infoContent = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 85)
+        .attr("font-size", "13px")
+        .attr("font-weight", "bold")
+        .text("");
 
-vehicleTypes.forEach((vehicleType, i) => {
-  const legendGroup = legend.append("g")
-    .attr("class", `legend-item-${i}`)
-    .style("cursor", "pointer");
+      // Details area with small hierarchy
+      const infoDetails = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 110)
+        .attr("font-size", "10px")
+        .attr("fill", "#666")
+        .text("");
 
-  // Line indicator
-  legendGroup.append("line")
-    .attr("x1", 10)
-    .attr("y1", 75 + i * 30)
-    .attr("x2", 25)
-    .attr("y2", 75 + i * 30)
-    .attr("stroke", color(vehicleType))
-    .attr("stroke-width", "3px");
+      // Functions for highlighting
+      function highlightVehicle(vehicleType) {
+        const index = sortedVehicleTypes.indexOf(vehicleType);
+        d3.select(`.vehicle-group-${index}`).style("opacity", 1);
+        lineGroups.forEach((group, groupIndex) => {
+          if (groupIndex !== index) {
+            group.style("opacity", 0.2);
+          }
+        });
+        
+        // Update info box with vehicle-specific data
+        const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
+        const totalCollisions = d3.sum(vehicleData.values, v => v.count);
+        const avgCollisions = Math.round(totalCollisions / 12);
+        const peakMonth = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
+        
+        infoContent.text(`${totalCollisions} collisions`);
+        infoDetails.text(`Average: ${avgCollisions} per month\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
+      }
 
-  // Vehicle type name with body hierarchy
-  legendGroup.append("text")
-    .attr("x", 35)
-    .attr("y", 80 + i * 30)
-    .attr("font-size", "13px")
-    .attr("font-weight", "normal")
-    .text(vehicleType);
+      function resetHighlights() {
+        lineGroups.forEach(group => {
+          group.style("opacity", 1);
+        });
+        
+        // Show overview of all vehicles
+        const totalCounts = [];
+        processedData.forEach(vehicleGroup => {
+          const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
+          totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
+        });
+        
+        infoContent.text("All Vehicle Types");
+        
+        let text = "";
+        totalCounts.slice(0, 6).forEach(count => {
+          text += `${count}\n`;
+        });
+        if (totalCounts.length > 6) {
+          text += `... and ${totalCounts.length - 6} more`;
+        }
+        infoDetails.text(text);
+      }
 
-  // Hover area
-  legendGroup.append("rect")
-    .attr("x", 5)
-    .attr("y", 65 + i * 30)
-    .attr("width", 190)
-    .attr("height", 30)
-    .attr("fill", "transparent")
-    .on("mouseover", function() {
-      highlightVehicle(vehicleType);
-    })
-    .on("mouseout", function() {
+      // Initialize overview
       resetHighlights();
-    });
-});
-
-// Right Info Box - Fibonacci hierarchy design
-const infoBox = svg.append("g").attr("transform", "translate(780, 120)");
-const infoRect = infoBox.append("rect")
-  .attr("width", 200)
-  .attr("height", 360)
-  .attr("fill", "white")
-  .attr("stroke", "gray")
-  .attr("stroke-width", "1px");
-
-// Main title with large hierarchy
-const infoTitle = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 30)
-  .attr("font-size", "21px")
-  .attr("font-weight", "bold")
-  .text("Collision Stats");
-
-// Subtitle with medium hierarchy
-infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 55)
-  .attr("font-size", "13px")
-  .attr("fill", "#666")
-  .text("Monthly Overview");
-
-// Main content area
-const infoContent = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 85)
-  .attr("font-size", "13px")
-  .attr("font-weight", "bold")
-  .text("");
-
-// Details area with small hierarchy
-const infoDetails = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 110)
-  .attr("font-size", "10px")
-  .attr("fill", "#666")
-  .text("");
-
-// Functions for highlighting
-function highlightVehicle(vehicleType) {
-  const index = vehicleTypes.indexOf(vehicleType);
-  d3.select(`.vehicle-group-${index}`).style("opacity", 1);
-  lineGroups.forEach((group, groupIndex) => {
-    if (groupIndex !== index) {
-      group.style("opacity", 0.2);
     }
+  })
+  .catch(error => {
+    console.error('Error loading CSV:', error);
+    svg.append("text")
+      .attr("x", 500)
+      .attr("y", 300)
+      .attr("text-anchor", "middle")
+      .text("Error loading collision data");
   });
-  
-  // Update info box with vehicle-specific data
-  const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
-  const totalCollisions = d3.sum(vehicleData.values, v => v.count);
-  const avgCollisions = Math.round(totalCollisions / 12);
-  const peakMonth = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
-  
-  infoContent.text(`${totalCollisions} collisions`);
-  infoDetails.text(`Average: ${avgCollisions} per month\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
-}
-
-function resetHighlights() {
-  lineGroups.forEach(group => {
-    group.style("opacity", 1);
-  });
-  
-  // Show overview of all vehicles
-  const totalCounts = [];
-  processedData.forEach(vehicleGroup => {
-    const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
-    totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
-  });
-  
-  infoContent.text("All Vehicle Types");
-  
-  let text = "";
-  totalCounts.slice(0, 6).forEach(count => {
-    text += `${count}\n`;
-  });
-  if (totalCounts.length > 6) {
-    text += `... and ${totalCounts.length - 6} more`;
-  }
-  infoDetails.text(text);
-}
-
-// Initialize overview
-resetHighlights();
 
 </script>
 </body>

@@ -29,307 +29,337 @@ const svg = d3.select("#chart")
 const tooltip = d3.select("body").append("div")
   .attr("class", "tooltip");
 
-// Generate comprehensive hourly collision data
-const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
-const hours = d3.range(24);
-
-// Create realistic hourly patterns for each vehicle type
-const hourlyPatterns = {
-  'Sedan': { peak: [8, 17, 18, 19], base: 600, variation: 400 },
-  'Station Wagon/Sport Utility Vehicle': { peak: [7, 8, 16, 17, 18], base: 500, variation: 300 },
-  'Taxi': { peak: [12, 13, 14, 15, 23, 0, 1, 2], base: 800, variation: 200 },
-  'Box Truck': { peak: [9, 10, 11, 14, 15, 16], base: 300, variation: 150 },
-  'Bike': { peak: [7, 8, 17, 18], base: 200, variation: 300 },
-  'Bus': { peak: [7, 8, 14, 15, 16, 17], base: 250, variation: 100 },
-  'Motorcycle': { peak: [17, 18, 19, 20, 21], base: 150, variation: 250 },
-  'Van': { peak: [9, 10, 14, 15, 16], base: 400, variation: 200 }
-};
-
-// Generate hourly collision data for each vehicle type
-const hourlyData = [];
-vehicleTypes.forEach(vehicleType => {
-  const pattern = hourlyPatterns[vehicleType];
-  const vehiclePoints = [];
-  
-  hours.forEach(hour => {
-    let count = pattern.base;
+// Load actual CSV data
+fetch('Motor_Vehicle_Collisions_2020-2024.csv')
+  .then(response => response.text())
+  .then(text => {
+    const csvData = d3.csvParse(text);
     
-    if (pattern.peak.includes(hour)) {
-      count += pattern.variation;
-    } else if (hour >= 22 || hour <= 6) {
-      count *= 0.3;
-    } else {
-      count += (Math.random() - 0.5) * pattern.variation * 0.5;
-    }
+    // Extract unique vehicle types from actual data
+    const vehicleTypeCounts = d3.rollup(csvData, v => v.length, d => d['VEHICLE TYPE CODE 1']);
+    const sortedVehicleTypes = Array.from(vehicleTypeCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8) // Top 8 most common vehicle types
+      .map(d => d[0]);
     
-    vehiclePoints.push({
-      hour: hour,
-      count: Math.max(50, count)
+    const hours = d3.range(24);
+    
+    // Process real collision data
+    const hourlyData = [];
+    csvData.forEach(d => {
+      const timeStr = d['CRASH TIME'];
+      if (timeStr && timeStr.includes(':')) {
+        const [hourStr] = timeStr.split(':');
+        const hour = parseInt(hourStr);
+        if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+          hourlyData.push({
+            hour: hour,
+            vehicleType: d['VEHICLE TYPE CODE 1'],
+            count: 1
+          });
+        }
+      }
     });
-  });
-  
-  hourlyData.push({
-    vehicleType: vehicleType,
-    values: vehiclePoints
-  });
-});
-
-// Scales
-const xScale = d3.scaleLinear().domain([0, 23]).range([250, 600]);
-const yScale = d3.scaleLinear().domain([0, d3.max(hourlyData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
-
-// Color scale
-const color = d3.scaleOrdinal(d3.schemeCategory10).domain(vehicleTypes);
-
-// Add axes
-svg.append("g")
-  .attr("transform", "translate(0,500)")
-  .call(d3.axisBottom(xScale).tickFormat(d => `${d}:00`));
-
-svg.append("g")
-  .attr("transform", "translate(250,0)")
-  .call(d3.axisLeft(yScale));
-
-// Title
-svg.append("text")
-  .attr("x", 425)
-  .attr("y", 40)
-  .attr("text-anchor", "middle")
-  .attr("font-size", "18px")
-  .attr("font-weight", "bold")
-  .text("Hourly Collision Patterns by Vehicle Type");
-
-// Labels
-svg.append("text")
-  .attr("transform", "rotate(-90)")
-  .attr("y", 30)
-  .attr("x", -300)
-  .attr("text-anchor", "middle")
-  .text("Collision Count");
-
-svg.append("text")
-  .attr("x", 425)
-  .attr("y", 580)
-  .attr("text-anchor", "middle")
-  .text("Hour of Day");
-
-// Line generator
-const line = d3.line()
-  .x(d => xScale(d.hour))
-  .y(d => yScale(d.count))
-  .curve(d3.curveMonotoneX);
-
-// Create lines for each vehicle type with animation and hover effects
-const lineGroups = [];
-hourlyData.forEach((vehicleGroup, index) => {
-  setTimeout(() => {
-    const group = svg.append("g").attr("class", `vehicle-group-${index}`);
     
-    const path = group.append("path")
-      .datum(vehicleGroup.values)
-      .attr("d", line)
-      .attr("stroke", color(vehicleGroup.vehicleType))
-      .attr("stroke-width", 3)
-      .attr("fill", "none")
-      .style("opacity", 0)
-      .style("cursor", "pointer")
-      .on("mouseover", function() {
-        highlightVehicle(vehicleGroup.vehicleType);
-      })
-      .on("mouseout", function() {
-        resetHighlights();
+    // Aggregate data by vehicle type and hour
+    const aggregatedData = d3.rollup(
+      hourlyData,
+      v => v.length, // Count collisions
+      d => d.vehicleType,
+      d => d.hour
+    );
+    
+    const processedData = [];
+    sortedVehicleTypes.forEach(vehicleType => {
+      const vehiclePoints = [];
+      hours.forEach(hour => {
+        const count = aggregatedData.get(vehicleType)?.get(hour) || 0;
+        vehiclePoints.push({
+          hour: hour,
+          count: count
+        });
       });
+      processedData.push({
+        vehicleType: vehicleType,
+        values: vehiclePoints
+      });
+    });
     
-    lineGroups.push(group);
+    initializeChart();
+    
+    function initializeChart() {
+      // Scales
+      const xScale = d3.scaleLinear().domain([0, 23]).range([250, 600]);
+      const yScale = d3.scaleLinear().domain([0, d3.max(processedData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
 
-    // Animate the line drawing
-    const totalLength = path.node().getTotalLength();
-    path
-      .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
-      .attr("stroke-dashoffset", totalLength)
-      .style("opacity", 1)
-      .transition()
-      .duration(2000)
-      .delay(index * 300)
-      .attr("stroke-dashoffset", 0);
+      // Color scale
+      const color = d3.scaleOrdinal(d3.schemeCategory10).domain(sortedVehicleTypes);
 
-    // Add interactive circles for each data point
-    vehicleGroup.values.forEach((point, pointIndex) => {
-      setTimeout(() => {
-        group.append("circle")
-          .attr("cx", xScale(point.hour))
-          .attr("cy", yScale(point.count))
-          .attr("r", 0)
-          .attr("fill", color(vehicleGroup.vehicleType))
-          .transition()
-          .duration(300)
-          .delay(2000 + index * 300 + pointIndex * 50)
-          .attr("r", 4)
-          .style("cursor", "pointer")
-          .on("mouseover", function(event) {
-            highlightVehicle(vehicleGroup.vehicleType);
-            tooltip.transition().duration(200).style("opacity", 1);
-            tooltip.html(`
-              <strong>${vehicleGroup.vehicleType}</strong><br/>
-              Hour: ${point.hour}:00<br/>
-              Collisions: ${point.count}
-            `)
-            .style("left", (event.pageX + 10) + "px")
-            .style("top", (event.pageY - 30) + "px");
-          })
-          .on("mousemove", function(event) {
-            tooltip
-              .style("left", (event.pageX + 10) + "px")
-              .style("top", (event.pageY - 30) + "px");
+      // Add axes
+      svg.append("g")
+        .attr("transform", "translate(0,500)")
+        .call(d3.axisBottom(xScale).tickFormat(d => `${d}:00`));
+
+      svg.append("g")
+        .attr("transform", "translate(250,0)")
+        .call(d3.axisLeft(yScale));
+
+      // Title
+      svg.append("text")
+        .attr("x", 425)
+        .attr("y", 40)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "18px")
+        .attr("font-weight", "bold")
+        .text("Hourly Collision Patterns by Vehicle Type");
+
+      // Labels
+      svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 30)
+        .attr("x", -300)
+        .attr("text-anchor", "middle")
+        .text("Collision Count");
+
+      svg.append("text")
+        .attr("x", 425)
+        .attr("y", 580)
+        .attr("text-anchor", "middle")
+        .text("Hour of Day");
+
+      // Line generator
+      const line = d3.line()
+        .x(d => xScale(d.hour))
+        .y(d => yScale(d.count))
+        .curve(d3.curveMonotoneX);
+
+      // Create lines for each vehicle type with animation and hover effects
+      const lineGroups = [];
+      processedData.forEach((vehicleGroup, index) => {
+        setTimeout(() => {
+          const group = svg.append("g").attr("class", `vehicle-group-${index}`);
+          
+          const path = group.append("path")
+            .datum(vehicleGroup.values)
+            .attr("d", line)
+            .attr("stroke", color(vehicleGroup.vehicleType))
+            .attr("stroke-width", 3)
+            .attr("fill", "none")
+            .style("opacity", 0)
+            .style("cursor", "pointer")
+            .on("mouseover", function() {
+              highlightVehicle(vehicleGroup.vehicleType);
+            })
+            .on("mouseout", function() {
+              resetHighlights();
+            });
+          
+          lineGroups.push(group);
+
+          // Animate the line drawing
+          const totalLength = path.node().getTotalLength();
+          path
+            .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+            .attr("stroke-dashoffset", totalLength)
+            .style("opacity", 1)
+            .transition()
+            .duration(2000)
+            .delay(index * 300)
+            .attr("stroke-dashoffset", 0);
+
+          // Add interactive circles for each data point
+          vehicleGroup.values.forEach((point, pointIndex) => {
+            setTimeout(() => {
+              group.append("circle")
+                .attr("cx", xScale(point.hour))
+                .attr("cy", yScale(point.count))
+                .attr("r", 0)
+                .attr("fill", color(vehicleGroup.vehicleType))
+                .transition()
+                .duration(300)
+                .delay(2000 + index * 300 + pointIndex * 50)
+                .attr("r", 4)
+                .style("cursor", "pointer")
+                .on("mouseover", function(event) {
+                  highlightVehicle(vehicleGroup.vehicleType);
+                  tooltip.transition().duration(200).style("opacity", 1);
+                  tooltip.html(`
+                    <strong>${vehicleGroup.vehicleType}</strong><br/>
+                    Hour: ${point.hour}:00<br/>
+                    Collisions: ${point.count}
+                  `)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY - 30) + "px");
+                })
+                .on("mousemove", function(event) {
+                  tooltip
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 30) + "px");
+                })
+                .on("mouseout", function() {
+                  resetHighlights();
+                  tooltip.transition().duration(200).style("opacity", 0);
+                });
+            }, 0);
+          });
+
+        }, index * 300);
+      });
+
+      // Left Legend - Fibonacci hierarchy design
+      const legend = svg.append("g").attr("transform", "translate(20, 120)");
+      legend.append("rect").attr("width", 200).attr("height", 360).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", "1px");
+
+      // Main title with large hierarchy
+      legend.append("text")
+        .attr("x", 10)
+        .attr("y", 30)
+        .attr("font-size", "21px")
+        .attr("font-weight", "bold")
+        .text("Vehicle Types");
+
+      // Subtitle with medium hierarchy  
+      legend.append("text")
+        .attr("x", 10)
+        .attr("y", 55)
+        .attr("font-size", "13px")
+        .attr("fill", "#666")
+        .text("Click to highlight");
+
+      sortedVehicleTypes.forEach((vehicleType, i) => {
+        const legendGroup = legend.append("g")
+          .attr("class", `legend-item-${i}`)
+          .style("cursor", "pointer");
+
+        // Line indicator
+        legendGroup.append("line")
+          .attr("x1", 10)
+          .attr("y1", 75 + i * 30)
+          .attr("x2", 25)
+          .attr("y2", 75 + i * 30)
+          .attr("stroke", color(vehicleType))
+          .attr("stroke-width", "3px");
+
+        // Vehicle type name with body hierarchy
+        legendGroup.append("text")
+          .attr("x", 35)
+          .attr("y", 80 + i * 30)
+          .attr("font-size", "13px")
+          .attr("font-weight", "normal")
+          .text(vehicleType);
+
+        // Hover area
+        legendGroup.append("rect")
+          .attr("x", 5)
+          .attr("y", 65 + i * 30)
+          .attr("width", 190)
+          .attr("height", 30)
+          .attr("fill", "transparent")
+          .on("mouseover", function() {
+            highlightVehicle(vehicleType);
           })
           .on("mouseout", function() {
             resetHighlights();
-            tooltip.transition().duration(200).style("opacity", 0);
           });
-      }, 0);
-    });
+      });
 
-  }, index * 300);
-});
+      // Right Info Box - Fibonacci hierarchy design
+      const infoBox = svg.append("g").attr("transform", "translate(780, 120)");
+      const infoRect = infoBox.append("rect")
+        .attr("width", 200)
+        .attr("height", 360)
+        .attr("fill", "white")
+        .attr("stroke", "gray")
+        .attr("stroke-width", "1px");
 
-// Left Legend - Fibonacci hierarchy design
-const legend = svg.append("g").attr("transform", "translate(20, 120)");
-legend.append("rect").attr("width", 200).attr("height", 360).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", "1px");
+      // Main title with large hierarchy
+      const infoTitle = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 30)
+        .attr("font-size", "21px")
+        .attr("font-weight", "bold")
+        .text("Collision Stats");
 
-// Main title with large hierarchy
-legend.append("text")
-  .attr("x", 10)
-  .attr("y", 30)
-  .attr("font-size", "21px")
-  .attr("font-weight", "bold")
-  .text("Vehicle Types");
+      // Subtitle with medium hierarchy
+      infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 55)
+        .attr("font-size", "13px")
+        .attr("fill", "#666")
+        .text("Hourly Overview");
 
-// Subtitle with medium hierarchy  
-legend.append("text")
-  .attr("x", 10)
-  .attr("y", 55)
-  .attr("font-size", "13px")
-  .attr("fill", "#666")
-  .text("Click to highlight");
+      // Main content area
+      const infoContent = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 85)
+        .attr("font-size", "13px")
+        .attr("font-weight", "bold")
+        .text("");
 
-vehicleTypes.forEach((vehicleType, i) => {
-  const legendGroup = legend.append("g")
-    .attr("class", `legend-item-${i}`)
-    .style("cursor", "pointer");
+      // Details area with small hierarchy
+      const infoDetails = infoBox.append("text")
+        .attr("x", 10)
+        .attr("y", 110)
+        .attr("font-size", "10px")
+        .attr("fill", "#666")
+        .text("");
 
-  // Line indicator
-  legendGroup.append("line")
-    .attr("x1", 10)
-    .attr("y1", 75 + i * 30)
-    .attr("x2", 25)
-    .attr("y2", 75 + i * 30)
-    .attr("stroke", color(vehicleType))
-    .attr("stroke-width", "3px");
+      // Functions for highlighting
+      function highlightVehicle(vehicleType) {
+        const index = sortedVehicleTypes.indexOf(vehicleType);
+        d3.select(`.vehicle-group-${index}`).style("opacity", 1);
+        lineGroups.forEach((group, groupIndex) => {
+          if (groupIndex !== index) {
+            group.style("opacity", 0.2);
+          }
+        });
+        
+        // Update info box with vehicle-specific data
+        const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
+        const totalCollisions = d3.sum(vehicleData.values, v => v.count);
+        const avgCollisions = Math.round(totalCollisions / 24);
+        const peakHour = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
+        
+        infoContent.text(`${totalCollisions} collisions`);
+        infoDetails.text(`Average: ${avgCollisions} per hour\nPeak: ${peakHour.hour}:00 (${peakHour.count})`);
+      }
 
-  // Vehicle type name with body hierarchy
-  legendGroup.append("text")
-    .attr("x", 35)
-    .attr("y", 80 + i * 30)
-    .attr("font-size", "13px")
-    .attr("font-weight", "normal")
-    .text(vehicleType);
+      function resetHighlights() {
+        lineGroups.forEach(group => {
+          group.style("opacity", 1);
+        });
+        
+        // Show overview of all vehicles
+        const totalCounts = [];
+        processedData.forEach(vehicleGroup => {
+          const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
+          totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
+        });
+        
+        infoContent.text("All Vehicle Types");
+        
+        let text = "";
+        totalCounts.slice(0, 6).forEach(count => {
+          text += `${count}\n`;
+        });
+        if (totalCounts.length > 6) {
+          text += `... and ${totalCounts.length - 6} more`;
+        }
+        infoDetails.text(text);
+      }
 
-  // Hover area
-  legendGroup.append("rect")
-    .attr("x", 5)
-    .attr("y", 65 + i * 30)
-    .attr("width", 190)
-    .attr("height", 30)
-    .attr("fill", "transparent")
-    .on("mouseover", function() {
-      highlightVehicle(vehicleType);
-    })
-    .on("mouseout", function() {
+      // Initialize overview
       resetHighlights();
-    });
-});
-
-// Right Info Box - Fibonacci hierarchy design
-const infoBox = svg.append("g").attr("transform", "translate(780, 120)");
-const infoRect = infoBox.append("rect")
-  .attr("width", 200)
-  .attr("height", 360)
-  .attr("fill", "white")
-  .attr("stroke", "gray")
-  .attr("stroke-width", "1px");
-
-// Main title with large hierarchy
-const infoTitle = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 30)
-  .attr("font-size", "21px")
-  .attr("font-weight", "bold")
-  .text("Collision Stats");
-
-// Subtitle with medium hierarchy
-infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 55)
-  .attr("font-size", "13px")
-  .attr("fill", "#666")
-  .text("Hourly Overview");
-
-// Main content area
-const infoContent = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 85)
-  .attr("font-size", "13px")
-  .attr("font-weight", "bold")
-  .text("");
-
-// Details area with small hierarchy
-const infoDetails = infoBox.append("text")
-  .attr("x", 10)
-  .attr("y", 110)
-  .attr("font-size", "10px")
-  .attr("fill", "#666")
-  .text("");
-
-// Functions for highlighting
-function highlightVehicle(vehicleType) {
-  const index = vehicleTypes.indexOf(vehicleType);
-  d3.select(`.vehicle-group-${index}`).style("opacity", 1);
-  lineGroups.forEach((group, groupIndex) => {
-    if (groupIndex !== index) {
-      group.style("opacity", 0.2);
     }
+  })
+  .catch(error => {
+    console.error('Error loading CSV:', error);
+    svg.append("text")
+      .attr("x", 500)
+      .attr("y", 300)
+      .attr("text-anchor", "middle")
+      .text("Error loading collision data");
   });
-  
-  // Show detailed info for hovered vehicle
-  const vehicleData = hourlyData.find(d => d.vehicleType === vehicleType);
-  const totalCollisions = d3.sum(vehicleData.values, v => v.count);
-  const avgCollisions = Math.round(totalCollisions / 24);
-  const peakHour = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
-  
-  infoDetails.text(`Total: ${totalCollisions}\nAvg/Hour: ${avgCollisions}\nPeak: ${peakHour.hour}:00 (${peakHour.count})`);
-}
-
-function resetHighlights() {
-  lineGroups.forEach(group => {
-    group.style("opacity", 1);
-  });
-  
-  // Show overview of all vehicles
-  const totalCounts = [];
-  hourlyData.forEach(vehicleGroup => {
-    const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
-    totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
-  });
-  
-  let text = "All Vehicles:\n";
-  totalCounts.forEach(count => {
-    text += `${count}\n`;
-  });
-  infoDetails.text(text);
-}
-
-// Initialize overview
-resetHighlights();
 
 </script>
 </body>

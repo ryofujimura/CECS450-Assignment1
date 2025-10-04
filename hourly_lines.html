@@ -90,17 +90,21 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
     function initializeChart() {
       // Scales
       const xScale = d3.scaleLinear().domain([0, 23]).range([250, 600]);
-      const yScale = d3.scaleLinear().domain([0, d3.max(processedData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
+      
+      // Y-axis with zoom capability
+      const maxCollisions = d3.max(processedData.flatMap(d => d.values), v => v.count);
+      // Initialize with 3x zoom (middle position)
+      let yScale = d3.scaleLinear().domain([0, maxCollisions / 3]).range([500, 100]);
 
       // Color scale
       const color = d3.scaleOrdinal(d3.schemeCategory10).domain(sortedVehicleTypes);
 
       // Add axes
-      svg.append("g")
+      const xAxis = svg.append("g")
         .attr("transform", "translate(0,500)")
         .call(d3.axisBottom(xScale).tickFormat(d => `${d}:00`));
 
-      svg.append("g")
+      const yAxis = svg.append("g")
         .attr("transform", "translate(250,0)")
         .call(d3.axisLeft(yScale));
 
@@ -126,6 +130,70 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         .attr("y", 580)
         .attr("text-anchor", "middle")
         .text("Hour of Day");
+
+      // Add zoom slider
+      const zoomControls = svg.append("g").attr("transform", "translate(680, 40)");
+      
+      // Zoom slider background
+      zoomControls.append("rect")
+        .attr("width", 280)
+        .attr("height", 50)
+        .attr("fill", "white")
+        .attr("stroke", "gray")
+        .attr("stroke-width", "1px");
+      
+      // Zoom slider title
+      zoomControls.append("text")
+        .attr("x", 10)
+        .attr("y", 15)
+        .attr("font-size", "10px")
+        .attr("font-weight", "bold")
+        .text("Y-Axis Zoom");
+      
+      // Zoom slider track
+      const sliderWidth = 260;
+      const sliderHeight = 6;
+      const sliderX = 10;
+      const sliderY = 30;
+      
+      zoomControls.append("rect")
+        .attr("x", sliderX)
+        .attr("y", sliderY)
+        .attr("width", sliderWidth)
+        .attr("height", sliderHeight)
+        .attr("fill", "#ddd");
+      
+      // Zoom slider handle
+      const zoomHandle = zoomControls.append("circle")
+        .attr("cx", sliderX + sliderWidth * 0.5) // Start at middle (50% position = 3x zoom)
+        .attr("cy", sliderY + sliderHeight/2)
+        .attr("r", 8)
+        .attr("fill", "#333")
+        .attr("stroke", "white")
+        .attr("stroke-width", 2)
+        .style("cursor", "pointer")
+        .call(d3.drag()
+          .on("drag", function(event) {
+            const newX = Math.max(sliderX, Math.min(sliderX + sliderWidth, event.x));
+            const normalizedPos = (newX - sliderX) / sliderWidth;
+            zoomHandle.attr("cx", newX);
+            
+            // Update Y scale (position 0 = full view, 1 = 5x zoom)
+            const zoomFactor = 1 + normalizedPos * 4; // 1x to 5x zoom
+            const newMax = maxCollisions / zoomFactor;
+            yScale = d3.scaleLinear().domain([0, newMax]).range([500, 100]);
+            
+            // Update chart elements
+            updateChartScale();
+          }));
+      
+      // Label for zoom level
+      const zoomLabel = zoomControls.append("text")
+        .attr("x", 10)
+        .attr("y", 45)
+        .attr("font-size", "8px")
+        .attr("fill", "#666")
+        .text("3.0x");
 
       // Line generator
       const line = d3.line()
@@ -345,6 +413,35 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         });
         
         infoDetails.text(text);
+      }
+
+      // Function to update chart scale when zooming
+      function updateChartScale() {
+        // Update Y-axis
+        yAxis.transition().duration(200).call(d3.axisLeft(yScale));
+        
+        // Update all lines
+        lineGroups.forEach((group, index) => {
+          const vehicleGroup = processedData[index];
+          group.selectAll("path")
+            .transition()
+            .duration(200)
+            .attr("d", d3.line()
+              .x(d => xScale(d.hour))
+              .y(d => yScale(d.count))
+              .curve(d3.curveMonotoneX)
+              (vehicleGroup.values));
+          
+          // Update all circles
+          group.selectAll("circle")
+            .transition()
+            .duration(200)
+            .attr("cy", d => yScale(d.count));
+        });
+        
+        // Update zoom label
+        const currentZoomFactor = maxCollisions / yScale.domain()[1];
+        zoomLabel.text(`${currentZoomFactor.toFixed(1)}x`);
       }
 
       // Initialize overview

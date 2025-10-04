@@ -54,11 +54,10 @@ vehicleTypes.forEach(vehicleType => {
   hours.forEach(hour => {
     let count = pattern.base;
     
-    // Add hourly variation
     if (pattern.peak.includes(hour)) {
       count += pattern.variation;
     } else if (hour >= 22 || hour <= 6) {
-      count *= 0.3; // Late night reduction
+      count *= 0.3;
     } else {
       count += (Math.random() - 0.5) * pattern.variation * 0.5;
     }
@@ -75,8 +74,8 @@ vehicleTypes.forEach(vehicleType => {
   });
 });
 
-// Scales - adjust ranges to accommodate left legend
-const xScale = d3.scaleLinear().domain([0, 23]).range([250, 750]);
+// Scales
+const xScale = d3.scaleLinear().domain([0, 23]).range([250, 600]);
 const yScale = d3.scaleLinear().domain([0, d3.max(hourlyData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
 
 // Color scale
@@ -93,7 +92,7 @@ svg.append("g")
 
 // Title
 svg.append("text")
-  .attr("x", 500)
+  .attr("x", 425)
   .attr("y", 40)
   .attr("text-anchor", "middle")
   .attr("font-size", "18px")
@@ -109,7 +108,7 @@ svg.append("text")
   .text("Collision Count");
 
 svg.append("text")
-  .attr("x", 500)
+  .attr("x", 425)
   .attr("y", 580)
   .attr("text-anchor", "middle")
   .text("Hour of Day");
@@ -135,19 +134,10 @@ hourlyData.forEach((vehicleGroup, index) => {
       .style("opacity", 0)
       .style("cursor", "pointer")
       .on("mouseover", function() {
-        // Highlight current vehicle type and fade others
-        d3.select(`.vehicle-group-${index}`).style("opacity", 1);
-        lineGroups.forEach((group, groupIndex) => {
-          if (groupIndex !== index) {
-            group.style("opacity", 0.2);
-          }
-        });
+        highlightVehicle(vehicleGroup.vehicleType);
       })
       .on("mouseout", function() {
-        // Return all lines to normal opacity
-        lineGroups.forEach(group => {
-          group.style("opacity", 1);
-        });
+        resetHighlights();
       });
     
     lineGroups.push(group);
@@ -163,29 +153,21 @@ hourlyData.forEach((vehicleGroup, index) => {
       .delay(index * 300)
       .attr("stroke-dashoffset", 0);
 
-    // Add interactive circles for each data point with tooltips
+    // Add interactive circles for each data point
     vehicleGroup.values.forEach((point, pointIndex) => {
       setTimeout(() => {
         group.append("circle")
           .attr("cx", xScale(point.hour))
-          .attr("cy", yScale(point.count))
+        .attr("cy", yScale(point.count))
           .attr("r", 0)
           .attr("fill", color(vehicleGroup.vehicleType))
-          .attr("stroke", "white")
-          .attr("stroke-width", 2)
           .transition()
           .duration(300)
           .delay(2000 + index * 300 + pointIndex * 50)
           .attr("r", 4)
+          .style("cursor", "pointer")
           .on("mouseover", function(event) {
-            // Highlight this vehicle type and fade others
-            d3.select(`.vehicle-group-${index}`).style("opacity", 1);
-            lineGroups.forEach((group, groupIndex) => {
-              if (groupIndex !== index) {
-                group.style("opacity", 0.2);
-              }
-            });
-            // Show tooltip
+            highlightVehicle(vehicleGroup.vehicleType);
             tooltip.transition().duration(200).style("opacity", 1);
             tooltip.html(`
               <strong>${vehicleGroup.vehicleType}</strong><br/>
@@ -201,10 +183,7 @@ hourlyData.forEach((vehicleGroup, index) => {
               .style("top", (event.pageY - 30) + "px");
           })
           .on("mouseout", function() {
-            // Return all lines to normal opacity
-            lineGroups.forEach(group => {
-              group.style("opacity", 1);
-            });
+            resetHighlights();
             tooltip.transition().duration(200).style("opacity", 0);
           });
       }, 0);
@@ -213,13 +192,12 @@ hourlyData.forEach((vehicleGroup, index) => {
   }, index * 300);
 });
 
-// Legend - moved to left side
+// Left Legend
 const legend = svg.append("g").attr("transform", "translate(20, 150)");
 legend.append("rect").attr("width", 200).attr("height", vehicleTypes.length * 25 + 30).attr("fill", "white").attr("stroke", "gray");
 
 legend.append("text").attr("x", 10).attr("y", 25).text("Vehicle Types").attr("font-weight", "bold");
 
-// Create individual legend groups for hover effects
 vehicleTypes.forEach((vehicleType, i) => {
   const legendGroup = legend.append("g")
     .attr("class", `legend-item-${i}`)
@@ -237,32 +215,12 @@ vehicleTypes.forEach((vehicleType, i) => {
     .attr("font-size", "11px")
     .text(vehicleType);
 
-  // Add invisible hover area
   legendGroup.append("rect")
     .attr("x", 5)
-    .attr("y", 20 + i * 25)
-    .attr("width", 190)
-    .attr("height", 25)
-    .attr("fill", "transparent");
+    .attr("y",```
 
-  // Add hover events
-  legendGroup
-    .on("mouseover", function() {
-      // Highlight current vehicle type and fade others
-      d3.select(`.vehicle-group-${i}`).style("opacity", 1);
-      lineGroups.forEach((group, groupIndex) => {
-        if (groupIndex !== i) {
-          group.style("opacity", 0.2);
-        }
-      });
-    })
-    .on("mouseout", function() {
-      // Return all lines to normal opacity
-      lineGroups.forEach(group => {
-        group.style("opacity", 1);
-      });
-    });
-});
-</script>
-</body>
-</html>
+Now let me commit these comprehensive updates:
+
+<function\_calls>
+<invoke name="todo\_write">
+<parameter name="merge">true

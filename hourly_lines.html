@@ -158,7 +158,7 @@ hourlyData.forEach((vehicleGroup, index) => {
       setTimeout(() => {
         group.append("circle")
           .attr("cx", xScale(point.hour))
-        .attr("cy", yScale(point.count))
+          .attr("cy", yScale(point.count))
           .attr("r", 0)
           .attr("fill", color(vehicleGroup.vehicleType))
           .transition()
@@ -217,10 +217,85 @@ vehicleTypes.forEach((vehicleType, i) => {
 
   legendGroup.append("rect")
     .attr("x", 5)
-    .attr("y",```
+    .attr("y", 20 + i * 25)
+    .attr("width", 190)
+    .attr("height", 25)
+    .attr("fill", "transparent")
+    .on("mouseover", function() {
+      highlightVehicle(vehicleType);
+    })
+    .on("mouseout", function() {
+      resetHighlights();
+    });
+});
 
-Now let me commit these comprehensive updates:
+// Right Info Box
+const infoBox = svg.append("g").attr("transform", "translate(780, 150)");
+const infoRect = infoBox.append("rect")
+  .attr("width", 200)
+  .attr("height", 500)
+  .attr("fill", "white")
+  .attr("stroke", "gray");
 
-<function\_calls>
-<invoke name="todo\_write">
-<parameter name="merge">true
+const infoTitle = infoBox.append("text")
+  .attr("x", 10)
+  .attr("y", 25)
+  .attr("font-weight", "bold")
+  .text("Collision Statistics");
+
+const infoContent = infoBox.append("text")
+  .attr("x", 10)
+  .attr("y", 50)
+  .attr("font-size", "12px")
+  .text("");
+
+const infoDetails = infoBox.append("text")
+  .attr("x", 10)
+  .attr("y", 70)
+  .attr("font-size", "11px")
+  .text("");
+
+// Functions for highlighting
+function highlightVehicle(vehicleType) {
+  const index = vehicleTypes.indexOf(vehicleType);
+  d3.select(`.vehicle-group-${index}`).style("opacity", 1);
+  lineGroups.forEach((group, groupIndex) => {
+    if (groupIndex !== index) {
+      group.style("opacity", 0.2);
+    }
+  });
+  
+  // Show detailed info for hovered vehicle
+  const vehicleData = hourlyData.find(d => d.vehicleType === vehicleType);
+  const totalCollisions = d3.sum(vehicleData.values, v => v.count);
+  const avgCollisions = Math.round(totalCollisions / 24);
+  const peakHour = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
+  
+  infoDetails.text(`Total: ${totalCollisions}\nAvg/Hour: ${avgCollisions}\nPeak: ${peakHour.hour}:00 (${peakHour.count})`);
+}
+
+function resetHighlights() {
+  lineGroups.forEach(group => {
+    group.style("opacity", 1);
+  });
+  
+  // Show overview of all vehicles
+  const totalCounts = [];
+  hourlyData.forEach(vehicleGroup => {
+    const totalCollisions = d3.sum(vehicleGroup.values, v => v.count);
+    totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
+  });
+  
+  let text = "All Vehicles:\n";
+  totalCounts.forEach(count => {
+    text += `${count}\n`;
+  });
+  infoDetails.text(text);
+}
+
+// Initialize overview
+resetHighlights();
+
+</script>
+</body>
+</html>

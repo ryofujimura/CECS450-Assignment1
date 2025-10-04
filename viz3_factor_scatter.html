@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+
+<script>
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", 800)
+  .attr("height", 400);
+
+fetch('Motor_Vehicle_Collisions_2020-2024.csv')
+  .then(response => response.text())
+  .then(text => {
+    const data = d3.csvParse(text).slice(0, 20);
+    
+    const processedData = data.map(d => ({
+      date: new Date(d['CRASH DATE']),
+      factor: d['CONTRIBUTING FACTOR VEHICLE 1'],
+      x: new Date(d['CRASH DATE']).getTime(),
+      y: Math.random() * 300 + 50
+    }));
+
+    const xScale = d3.scaleTime().domain(d3.extent(processedData, d => d.date)).range([50, 750]);
+    const yScale = d3.scaleLinear().domain([0, 400]).range([350, 50]);
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+    const factors = [...new Set(processedData.map(d => d.factor))];
+
+    processedData.forEach((d, i) => {
+      setTimeout(() => {
+        svg.append("circle")
+          .attr("cx", xScale(d.date))
+          .attr("cy", yScale(d.y))
+          .attr("r", 0)
+          .attr("fill", color(factors.indexOf(d.factor)))
+          .transition()
+          .duration(800)
+          .attr("r", 8);
+      }, i * 100);
+    });
+
+    svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale));
+    svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Crash Factors Over Time");
+  });
+</script>
+</body>
+</html>

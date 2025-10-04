@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+
+<script>
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", 800)
+  .attr("height", 400);
+
+fetch('Motor_Vehicle_Collisions_2020-2024.csv')
+  .then(response => response.text())
+  .then(text => {
+    const data = d3.csvParse(text).slice(0, 20);
+    
+    const yearCounts = d3.rollup(data, v => v.length, d => d['YEAR']);
+    const chartData = Array.from(yearCounts).map(([year, count]) => ({ year, count }));
+
+    const pie = d3.pie().value(d => d.count).sort(null);
+    const arc = d3.arc().innerRadius(80).outerRadius(150);
+    const color = d3.scaleOrdinal(d3.schemeSet1);
+
+    const g = svg.append("g").attr("transform", "translate(400,200)");
+    
+    const arcs = g.selectAll("arc").data(pie(chartData)).enter().append("g");
+
+    arcs.append("path")
+      .attr("d", arc)
+      .attr("fill", (d, i) => color(i))
+      .transition()
+      .duration(800)
+      .delay((d, i) => i * 150)
+      .attrTween("d", d => {
+        const interpolate = d3.interpolate({ startAngle: 0, endAngle: 0 }, d);
+        return t => arc(interpolate(t));
+      });
+
+    arcs.append("text")
+      .attr("transform", d => `translate(${arc.centroid(d)})`)
+      .attr("text-anchor", "middle")
+      .text(d => d.data.year)
+      .style("opacity", 0)
+      .transition()
+      .duration(300)
+      .delay(1000)
+      .style("opacity", 1);
+
+    svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Collisions by Year");
+  });
+</script>
+</body>
+</html>

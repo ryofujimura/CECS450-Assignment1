@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+
+<script>
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", 800)
+  .attr("height", 400);
+
+fetch('Motor_Vehicle_Collisions_2020-2024.csv')
+  .then(response => response.text())
+  .then(text => {
+    const data = d3.csvParse(text).slice(0, 20);
+    
+    const timeData = data.map(d => ({
+      time: new Date(`2020-01-01 ${d['CRASH TIME']}`).getHours(),
+      factor: d['CONTRIBUTING FACTOR VEHICLE 1']
+    })).filter(d => !isNaN(d.time));
+
+    const hourlyCounts = d3.rollup(timeData, v => v.length, d => d.time);
+    const chartData = Array.from(hourlyCounts).map(([hour, count]) => ({ hour, count }));
+
+    const xScale = d3.scaleBand().domain(d3.range(24)).range([50, 750]).padding(0.1);
+    const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([350, 50]);
+
+    chartData.forEach((d, i) => {
+      setTimeout(() => {
+        svg.append("rect")
+          .datum(d)
+          .attr("x", xScale(d.hour))
+          .attr("y", yScale(0))
+          .attr("width", xScale.bandwidth())
+          .attr("height", 0)
+          .attr("fill", "steelblue")
+          .transition()
+          .duration(500)
+          .attr("y", yScale(d.count))
+          .attr("height", yScale(0) - yScale(d.count));
+      }, i * 100);
+    });
+
+    svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale));
+    svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Collisions by Hour");
+  });
+</script>
+</body>
+</html>

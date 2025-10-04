@@ -115,16 +115,21 @@ const line = d3.line()
   .y(d => yScale(d.count))
   .curve(d3.curveMonotoneX);
 
-// Create lines for each vehicle type with animation
+// Create lines for each vehicle type with animation and hover effects
+const lineGroups = [];
 processedData.forEach((vehicleGroup, index) => {
   setTimeout(() => {
-    const path = svg.append("path")
+    const group = svg.append("g").attr("class", `vehicle-group-${index}`);
+    
+    const path = group.append("path")
       .datum(vehicleGroup.values)
       .attr("d", line)
       .attr("stroke", color(vehicleGroup.vehicleType))
       .attr("stroke-width", 3)
       .attr("fill", "none")
       .style("opacity", 0);
+    
+    lineGroups.push(group);
 
     // Animate the line drawing
     const totalLength = path.node().getTotalLength();
@@ -140,7 +145,7 @@ processedData.forEach((vehicleGroup, index) => {
     // Add circles for each data point
     vehicleGroup.values.forEach((point, pointIndex) => {
       setTimeout(() => {
-        svg.append("circle")
+        group.append("circle")
           .attr("cx", xScale(point.month))
           .attr("cy", yScale(point.count))
           .attr("r", 0)
@@ -154,7 +159,7 @@ processedData.forEach((vehicleGroup, index) => {
 
     // Add labels at the end of each line
     const lastPoint = vehicleGroup.values[vehicleGroup.values.length - 1];
-    svg.append("text")
+    group.append("text")
       .attr("x", xScale(lastPoint.month) + 10)
       .attr("y", yScale(lastPoint.count))
       .attr("font-size", "12px")
@@ -175,17 +180,50 @@ const legend = svg.append("g").attr("transform", "translate(20, 150)");
 legend.append("rect").attr("width", 200).attr("height", vehicleTypes.length * 25 + 30).attr("fill", "white").attr("stroke", "gray");
 
 legend.append("text").attr("x", 10).attr("y", 25).text("Vehicle Types").attr("font-weight", "bold");
+
+// Create individual legend groups for hover effects
 vehicleTypes.forEach((vehicleType, i) => {
-  legend.append("line")
+  const legendGroup = legend.append("g")
+    .attr("class", `legend-item-${i}`)
+    .style("cursor", "pointer");
+
+  legendGroup.append("line")
     .attr("x1", 10).attr("y1", 30 + i * 25)
     .attr("x2", 25).attr("y2", 30 + i * 25)
     .attr("stroke", color(vehicleType))
     .attr("stroke-width", 3);
-  legend.append("text")
+
+  legendGroup.append("text")
     .attr("x", 30)
     .attr("y", 35 + i * 25)
     .attr("font-size", "11px")
-    .text(vehicleType); // Show full vehicle type name
+    .text(vehicleType);
+
+  // Add invisible hover area
+  legendGroup.append("rect")
+    .attr("x", 5)
+    .attr("y", 20 + i * 25)
+    .attr("width", 190)
+    .attr("height", 25)
+    .attr("fill", "transparent");
+
+  // Add hover events
+  legendGroup
+    .on("mouseover", function() {
+      // Highlight current vehicle type and fade others
+      d3.select(`.vehicle-group-${i}`).style("opacity", 1);
+      lineGroups.forEach((group, groupIndex) => {
+        if (groupIndex !== i) {
+          group.style("opacity", 0.2);
+        }
+      });
+    })
+    .on("mouseout", function() {
+      // Return all lines to normal opacity
+      lineGroups.forEach(group => {
+        group.style("opacity", 1);
+      });
+    });
 });
 </script>
 </body>

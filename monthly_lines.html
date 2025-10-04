@@ -145,7 +145,23 @@ processedData.forEach((vehicleGroup, index) => {
       .attr("stroke", color(vehicleGroup.vehicleType))
       .attr("stroke-width", 3)
       .attr("fill", "none")
-      .style("opacity", 0);
+      .style("opacity", 0)
+      .style("cursor", "pointer")
+      .on("mouseover", function() {
+        // Highlight current vehicle type and fade others
+        d3.select(`.vehicle-group-${index}`).style("opacity", 1);
+        lineGroups.forEach((group, groupIndex) => {
+          if (groupIndex !== index) {
+            group.style("opacity", 0.2);
+          }
+        });
+      })
+      .on("mouseout", function() {
+        // Return all lines to normal opacity
+        lineGroups.forEach(group => {
+          group.style("opacity", 1);
+        });
+      });
     
     lineGroups.push(group);
 
@@ -175,6 +191,13 @@ processedData.forEach((vehicleGroup, index) => {
           .delay(1500 + index * 200 + pointIndex * 100)
           .attr("r", 5)
           .on("mouseover", function(event) {
+            // Highlight this vehicle type and fade others
+            d3.select(`.vehicle-group-${index}`).style("opacity", 1);
+            lineGroups.forEach((group, groupIndex) => {
+              if (groupIndex !== index) {
+                group.style("opacity", 0.2);
+              }
+            });
             // Show tooltip
             tooltip.transition().duration(200).style("opacity", 1);
             tooltip.html(`
@@ -191,6 +214,10 @@ processedData.forEach((vehicleGroup, index) => {
               .style("top", (event.pageY - 30) + "px");
           })
           .on("mouseout", function() {
+            // Return all lines to normal opacity
+            lineGroups.forEach(group => {
+              group.style("opacity", 1);
+            });
             tooltip.transition().duration(200).style("opacity", 0);
           });
       }, 0);

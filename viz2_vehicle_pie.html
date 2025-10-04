@@ -13,45 +13,72 @@ const svg = d3.select("#chart")
   .attr("width", 800)
   .attr("height", 400);
 
-fetch('Motor_Vehicle_Collisions_2020-2024.csv')
-  .then(response => response.text())
-  .then(text => {
-    const data = d3.csvParse(text).slice(0, 20);
-    
-    const vehicleCounts = d3.rollup(data, v => v.length, d => d['VEHICLE TYPE CODE 1']);
-    const chartData = Array.from(vehicleCounts).map(([type, count]) => ({ type, count }));
+const csvData = `CRASH DATE,CRASH TIME,CONTRIBUTING FACTOR VEHICLE 1,VEHICLE TYPE CODE 1,MONTH,DAY,YEAR
+01/01/2020,0:00,Driver Inattention/Distraction,Taxi,1,1,2020
+01/01/2020,0:00,Driver Inattention/Distraction,Sedan,1,1,2020
+01/01/2020,0:00,Alcohol Involvement,Sedan,1,1,2020
+01/01/2020,0:00,Backing Unsafely,Sedan,1,1,2020
+01/01/2020,0:00,Driver Inattention/Distraction,Sedan,1,1,2020
+01/01/2020,0:10,Driver Inattention/Distraction,Sedan,1,1,2020
+01/01/2020,0:15,Driver Inattention/Distraction,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,0:15,Driver Inattention/Distraction,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,0:15,Driver Inattention/Distraction,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,0:20,Driver Inattention/Distraction,Sedan,1,1,2020
+01/01/2020,0:20,Other Vehicular,Sedan,1,1,2020
+01/01/2020,0:22,Passing or Lane Usage Improper,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,0:25,Other Vehicular,Sedan,1,1,2020
+01/01/2020,0:37,Driver Inattention/Distraction,Taxi,1,1,2020
+01/01/2020,0:39,Traffic Control Disregarded,Sedan,1,1,2020
+01/01/2020,0:55,Following Too Closely,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,10:00,Passing Too Closely,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,10:30,Fell Asleep,Sedan,1,1,2020
+01/01/2020,11:00,Passing Too Closely,Station Wagon/Sport Utility Vehicle,1,1,2020
+01/01/2020,11:00,Driver Inattention/Distraction,Sedan,1,1,2020`;
 
-    const pie = d3.pie().value(d => d.count).sort(null);
-    const arc = d3.arc().innerRadius(0).outerRadius(150);
-    const color = d3.scaleOrdinal(d3.schemeCategory10);
+const data = d3.csvParse(csvData);
+const vehicleCounts = d3.rollup(data, v => v.length, d => d['VEHICLE TYPE CODE 1']);
+const chartData = Array.from(vehicleCounts).map(([type, count]) => ({ type, count }));
 
-    const g = svg.append("g").attr("transform", "translate(400,200)");
-    
-    const arcs = g.selectAll("arc").data(pie(chartData)).enter().append("g");
+const pie = d3.pie().value(d => d.count).sort(null);
+const arc = d3.arc().innerRadius(0).outerRadius(150);
+const color = d3.scaleOrdinal(d3.schemeCategory10);
 
-    arcs.append("path")
-      .attr("d", arc)
-      .attr("fill", (d, i) => color(i))
-      .transition()
-      .duration(1000)
-      .delay((d, i) => i * 200)
-      .attrTween("d", d => {
-        const interpolate = d3.interpolate({ startAngle: 0, endAngle: 0 }, d);
-        return t => arc(interpolate(t));
-      });
+const g = svg.append("g").attr("transform", "translate(400,200)");
 
-    arcs.append("text")
-      .attr("transform", d => `translate(${arc.centroid(d)})`)
-      .attr("text-anchor", "middle")
-      .text(d => d.data.type)
-      .style("opacity", 0)
-      .transition()
-      .duration(500)
-      .delay(1000)
-      .style("opacity", 1);
+const arcs = g.selectAll("arc").data(pie(chartData)).enter().append("g");
 
-    svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Vehicle Types");
+arcs.append("path")
+  .attr("d", arc)
+  .attr("fill", (d, i) => color(i))
+  .transition()
+  .duration(1000)
+  .delay((d, i) => i * 200)
+  .attrTween("d", d => {
+    const interpolate = d3.interpolate({ startAngle: 0, endAngle: 0 }, d);
+    return t
+
+
+
+
+
+
+
+
+
+ => arc(interpolate(t));
   });
+
+arcs.append("text")
+  .attr("transform", d => `translate(${arc.centroid(d)})`)
+  .attr("text-anchor", "middle")
+  .text(d => d.data.count)
+  .style("opacity", 0)
+  .transition()
+  .duration(500)
+  .delay(1000)
+  .style("opacity", 1);
+
+svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Vehicle Types");
 </script>
 </body>
 </html>

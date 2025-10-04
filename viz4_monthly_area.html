@@ -36,36 +36,47 @@ const csvData = `CRASH DATE,CRASH TIME,CONTRIBUTING FACTOR VEHICLE 1,VEHICLE TYP
 01/01/2020,11:00,Driver Inattention/Distraction,Sedan,1,1,2020`;
 
 const data = d3.csvParse(csvData);
-const timeData = data.map(d => ({
-  time: new Date(`2020-01-01 ${d['CRASH TIME']}`).getHours(),
-  factor: d['CONTRIBUTING FACTOR VEHICLE 1']
-})).filter(d => !isNaN(d.time));
+const monthlyData = data.map(d => ({
+  month: parseInt(d['MONTH']),
+ 	count: 1
+}));
 
-    const hourlyCounts = d3.rollup(timeData, v => v.length, d => d.time);
-    const chartData = Array.from(hourlyCounts).map(([hour, count]) => ({ hour, count }));
+const monthlyCounts = d3.rollup(monthlyData, v => v.length, d => d.month);
+const chartData = Array.from({length: 12}, (_, i) => ({
+  month: i + 1,
+  count: monthlyCounts.get(i + 1) || 0
+}));
 
-    const xScale = d3.scaleBand().domain(d3.range(24)).range([50, 750]).padding(0.1);
-    const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([350, 50]);
+const xScale = d3.scaleLinear().domain([1, 12]).range([50, 750]);
+const yScale = d3.scaleLinear().domain([0, d3.max(chartData, d => d.count)]).range([350, 50]);
+const area = d3.area()
+  .x(d => xScale(d.month))
+  .y0(350)
+  .y1(d => yScale(d.count));
 
-    chartData.forEach((d, i) => {
-      setTimeout(() => {
-        svg.append("rect")
-          .datum(d)
-          .attr("x", xScale(d.hour))
-          .attr("y", yScale(0))
-          .attr("width", xScale.bandwidth())
-          .attr("height", 0)
-          .attr("fill", "steelblue")
-          .transition()
-          .duration(500)
-          .attr("y", yScale(d.count))
-          .attr("height", yScale(0) - yScale(d.count));
-      }, i * 100);
-    });
+svg.append("path")
+  .datum(chartData)
+  .attr("d", area)
+  .attr("fill", "steelblue")
+  .style("opacity", 0)
+  .transition()
+  .duration(1500)
+  .style("opacity", 0.7);
 
-    svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale));
-svg.append("g").attr("transform", "translate(0,50)").call(d3.axisLeft(yScale));
-svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Collisions by Hour");
+chartData.forEach(d => {
+  svg.append("circle")
+    .attr("cx", xScale(d.month))
+    .attr("cy", yScale(d.count))
+    .attr("r", 0)
+    .attr("fill", "darkblue")
+    .transition()
+    .duration(500)
+    .delay(1500 + d.month * 100)
+    .attr("r", d.count > 0 ? 5 : 0);
+});
+
+svg.append("g").attr("transform", "translate(0,350)").call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+svg.append("text").attr("x", 400).attr("y", 20).attr("text-anchor", "middle").text("Monthly Collisions");
 </script>
 </body>
 </html>

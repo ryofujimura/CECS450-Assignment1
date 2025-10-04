@@ -107,7 +107,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         .attr("text-anchor", "middle")
         .attr("font-size", "18px")
         .attr("font-weight", "bold")
-        .text("Monthly Collision Patterns by Vehicle Type");
+        .text("Monthly Collision Patterns (2020-2024 Total) by Vehicle Type");
 
       // Labels
       svg.append("text")
@@ -282,7 +282,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         .attr("y", 55)
         .attr("font-size", "13px")
         .attr("fill", "#666")
-        .text("Monthly Overview");
+        .text("Sum Across 5 Years");
 
       // Main content area
       const infoContent = infoBox.append("text")
@@ -316,8 +316,8 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         const avgCollisions = Math.round(totalCollisions / 12);
         const peakMonth = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
         
-        infoContent.text(`${totalCollisions} collisions`);
-        infoDetails.text(`Average: ${avgCollisions} per month\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
+        infoContent.text(`${totalCollisions} total`);
+        infoDetails.text(`Avg/month: ${avgCollisions} collisions\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
       }
 
       function resetHighlights() {
@@ -332,7 +332,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
           totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
         });
         
-        infoContent.text("All Vehicle Types");
+        infoContent.text("All Vehicle Types (Total)");
         
         let text = "";
         totalCounts.slice(0, 6).forEach(count => {

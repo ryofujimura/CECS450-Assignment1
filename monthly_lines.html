@@ -204,34 +204,54 @@ processedData.forEach((vehicleGroup, index) => {
   }, index * 200);
 });
 
-// Left Legend
-const legend = svg.append("g").attr("transform", "translate(20, 150)");
-legend.append("rect").attr("width", 200).attr("height", vehicleTypes.length * 25 + 30).attr("fill", "white").attr("stroke", "gray");
+// Left Legend - Fibonacci hierarchy design
+const legend = svg.append("g").attr("transform", "translate(20, 120)");
+legend.append("rect").attr("width", 200).attr("height", 360).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", "1px");
 
-legend.append("text").attr("x", 10).attr("y", 25).text("Vehicle Types").attr("font-weight", "bold");
+// Main title with large hierarchy
+legend.append("text")
+  .attr("x", 10)
+  .attr("y", 30)
+  .attr("font-size", "21px")
+  .attr("font-weight", "bold")
+  .text("Vehicle Types");
+
+// Subtitle with medium hierarchy  
+legend.append("text")
+  .attr("x", 10)
+  .attr("y", 55)
+  .attr("font-size", "13px")
+  .attr("fill", "#666")
+  .text("Click to highlight");
 
 vehicleTypes.forEach((vehicleType, i) => {
   const legendGroup = legend.append("g")
     .attr("class", `legend-item-${i}`)
     .style("cursor", "pointer");
 
+  // Line indicator
   legendGroup.append("line")
-    .attr("x1", 10).attr("y1", 30 + i * 25)
-    .attr("x2", 25).attr("y2", 30 + i * 25)
+    .attr("x1", 10)
+    .attr("y1", 75 + i * 30)
+    .attr("x2", 25)
+    .attr("y2", 75 + i * 30)
     .attr("stroke", color(vehicleType))
-    .attr("stroke-width", 3);
+    .attr("stroke-width", "3px");
 
+  // Vehicle type name with body hierarchy
   legendGroup.append("text")
-    .attr("x", 30)
-    .attr("y", 35 + i * 25)
-    .attr("font-size", "11px")
+    .attr("x", 35)
+    .attr("y", 80 + i * 30)
+    .attr("font-size", "13px")
+    .attr("font-weight", "normal")
     .text(vehicleType);
 
+  // Hover area
   legendGroup.append("rect")
     .attr("x", 5)
-    .attr("y", 20 + i * 25)
+    .attr("y", 65 + i * 30)
     .attr("width", 190)
-    .attr("height", 25)
+    .attr("height", 30)
     .attr("fill", "transparent")
     .on("mouseover", function() {
       highlightVehicle(vehicleType);
@@ -241,30 +261,45 @@ vehicleTypes.forEach((vehicleType, i) => {
     });
 });
 
-// Right Info Box
-const infoBox = svg.append("g").attr("transform", "translate(780, 150)");
+// Right Info Box - Fibonacci hierarchy design
+const infoBox = svg.append("g").attr("transform", "translate(780, 120)");
 const infoRect = infoBox.append("rect")
   .attr("width", 200)
-  .attr("height", 500)
+  .attr("height", 360)
   .attr("fill", "white")
-  .attr("stroke", "gray");
+  .attr("stroke", "gray")
+  .attr("stroke-width", "1px");
 
+// Main title with large hierarchy
 const infoTitle = infoBox.append("text")
   .attr("x", 10)
-  .attr("y", 25)
+  .attr("y", 30)
+  .attr("font-size", "21px")
   .attr("font-weight", "bold")
-  .text("Collision Statistics");
+  .text("Collision Stats");
 
+// Subtitle with medium hierarchy
+infoBox.append("text")
+  .attr("x", 10)
+  .attr("y", 55)
+  .attr("font-size", "13px")
+  .attr("fill", "#666")
+  .text("Monthly Overview");
+
+// Main content area
 const infoContent = infoBox.append("text")
   .attr("x", 10)
-  .attr("y", 50)
-  .attr("font-size", "12px")
+  .attr("y", 85)
+  .attr("font-size", "13px")
+  .attr("font-weight", "bold")
   .text("");
 
+// Details area with small hierarchy
 const infoDetails = infoBox.append("text")
   .attr("x", 10)
-  .attr("y", 70)
-  .attr("font-size", "11px")
+  .attr("y", 110)
+  .attr("font-size", "10px")
+  .attr("fill", "#666")
   .text("");
 
 // Functions for highlighting
@@ -277,13 +312,14 @@ function highlightVehicle(vehicleType) {
     }
   });
   
-  // Show detailed info for hovered vehicle
+  // Update info box with vehicle-specific data
   const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
   const totalCollisions = d3.sum(vehicleData.values, v => v.count);
   const avgCollisions = Math.round(totalCollisions / 12);
   const peakMonth = vehicleData.values.reduce((max, curr) => curr.count > max.count ? curr : max);
   
-  infoDetails.text(`Total: ${totalCollisions}\nAvg/Month: ${avgCollisions}\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
+  infoContent.text(`${totalCollisions} collisions`);
+  infoDetails.text(`Average: ${avgCollisions} per month\nPeak: ${peakMonth.monthName} (${peakMonth.count})`);
 }
 
 function resetHighlights() {
@@ -298,10 +334,15 @@ function resetHighlights() {
     totalCounts.push(`${vehicleGroup.vehicleType}: ${totalCollisions}`);
   });
   
-  let text = "All Vehicles:\n";
-  totalCounts.forEach(count => {
+  infoContent.text("All Vehicle Types");
+  
+  let text = "";
+  totalCounts.slice(0, 6).forEach(count => {
     text += `${count}\n`;
   });
+  if (totalCounts.length > 6) {
+    text += `... and ${totalCounts.length - 6} more`;
+  }
   infoDetails.text(text);
 }
 

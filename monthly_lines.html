@@ -428,11 +428,14 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
               .curve(d3.curveMonotoneX)
               (vehicleGroup.values));
           
-          // Update all circles
+          // Update all circles by reusing original data
           group.selectAll("circle")
             .transition()
             .duration(200)
-            .attr("cy", d => yScale(d.count));
+            .attr("cy", function(d, i) {
+              const point = vehicleGroup.values[i];
+              return yScale(point ? point.count : d.count);
+            });
         });
         
         // Update zoom label

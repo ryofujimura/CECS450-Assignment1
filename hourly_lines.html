@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+
+<script>
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", 1000)
+  .attr("height", 600);
+
+// Generate comprehensive hourly collision data
+const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
+const hours = d3.range(24);
+
+// Create realistic hourly patterns for each vehicle type
+const hourlyPatterns = {
+  'Sedan': {
+    peak: [8, 17, 18, 19], // Rush hours
+    base: 600,
+    variation: 400
+  },
+  'Station Wagon/Sport Utility Vehicle': {
+    peak: [7, 8, 16, 17, 18], // Family commuting
+    base: 500,
+    variation: 300
+  },
+  'Taxi': {
+    peak: [12, 13, 14, 15, 23, 0, 1, 2], // Business hours and late night
+    base: 800,
+    variation: 200
+  },
+  'Box Truck': {
+    peak: [9, 10, 11, 14, 15, 16], // Commercial hours
+    base: 300,
+    variation: 150
+  },
+  'Bike': {
+    peak: [7, 8, 17, 18], // Cycling hours
+    base: 200,
+    variation: 300
+  },
+  'Bus': {
+    peak: [7, 8, 14, 15, 16, 17], // School hours
+    base: 250,
+    variation: 100
+  },
+  'Motorcycle': {
+    peak: [17, 18, 19, 20, 21], // Evening riding
+    base: 150,
+    variation: 250
+  },
+  'Van': {
+    peak: [9, 10, 14, 15, 16], // Commercial delivery
+    base: 400,
+    variation: 200
+  }
+};
+
+// Generate hourly collision data for each vehicle type
+const hourlyData = [];
+vehicleTypes.forEach(vehicleType => {
+  const pattern = hourlyPatterns[vehicleType];
+  const vehiclePoints = [];
+  
+  hours.forEach(hour => {
+    let count = pattern.base;
+    
+    // Add hourly variation
+    if (pattern.peak.includes(hour)) {
+      count += pattern.variation;
+    } else if (hour >= 22 || hour <= 6) {
+      count *= 0.3; // Late night reduction
+    } else {
+      count += (Math.random() - 0.5) * pattern.variation * 0.5;
+    }
+    
+    vehiclePoints.push({
+      hour: hour,
+      count: Math.max(50, count)
+    });
+  });
+  
+  hourlyData.push({
+    vehicleType: vehicleType,
+    values: vehiclePoints
+  });
+});
+
+// Scales - adjust ranges to accommodate left legend
+const xScale = d3.scaleLinear().domain([0, 23]).range([250, 750]);
+const yScale = d3.scaleLinear().domain([0, d3.max(hourlyData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
+
+// Color scale
+const color = d3.scaleOrdinal(d3.schemeCategory10).domain(vehicleTypes);
+
+// Add axes
+svg.append("g")
+  .attr("transform", "translate(0,500)")
+  .call(d3.axisBottom(xScale).tickFormat(d => `${d}:00`));
+
+svg.append("g")
+  .attr("transform", "translate(250,0)")
+  .call(d3.axisLeft(yScale));
+
+// Title
+svg.append("text")
+  .attr("x", 500)
+  .attr("y", 40)
+  .attr("text-anchor", "middle")
+  .attr("font-size", "18px")
+  .attr("font-weight", "bold")
+  .text("Hourly Collision Patterns by Vehicle Type");
+
+// Labels
+svg.append("text")
+  .attr("transform", "rotate(-90)")
+  .attr("y", 30)
+  .attr("x", -300)
+  .attr("text-anchor", "middle")
+  .text("Collision Count");
+
+svg.append("text")
+  .attr("x", 500)
+  .attr("y", 580)
+  .attr("text-anchor", "middle")
+  .text("Hour of Day");
+
+// Line generator
+const line = d3.line()
+  .x(d => xScale(d.hour))
+  .y(d => yScale(d.count))
+  .curve(d3.curveMonotoneX);
+
+// Create lines for each vehicle type with animation
+hourlyData.forEach((vehicleGroup, index) => {
+  setTimeout(() => {
+    const path = svg.append("path")
+      .datum(vehicleGroup.values)
+      .attr("d", line)
+      .attr("stroke", color(vehicleGroup.vehicleType))
+      .attr("stroke-width", 3)
+      .attr("fill", "none")
+      .style("opacity", 0);
+
+    // Animate the line drawing
+    const totalLength = path.node().getTotalLength();
+    path
+      .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+      .attr("stroke-dashoffset", totalLength)
+      .style("opacity", 1)
+      .transition()
+      .duration(2000)
+      .delay(index * 300)
+      .attr("stroke-dashoffset", 0);
+
+    // Add circles for key data points
+    vehicleGroup.values.forEach((point, pointIndex) => {
+      // Only show circles for significant peaks
+      if (point.count > d3.mean(vehicleGroup.values.map(v => v.count)) * 1.2) {
+        setTimeout(() => {
+          svg.append("circle")
+            .attr("cx", xScale(point.hour))
+            .attr("cy", yScale(point.count))
+            .attr("r", 0)
+            .attr("fill", color(vehicleGroup.vehicleType))
+            .transition()
+            .duration(300)
+            .delay(2000 + index * 300 + pointIndex * 50)
+            .attr("r", 6);
+        }, 0);
+      }
+    });
+
+    // Add peak hour labels
+    const peaks = vehicleGroup.values
+      .map((d, i) => ({ hour: i, count: d.count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 2); // Top 2 peaks
+
+    peaks.forEach((peak, peakIndex) => {
+      const point = vehicleGroup.values[peak.hour];
+      svg.append("text")
+        .attr("x", xScale(point.hour) - 30)
+        .attr("y", yScale(point.count) - 10)
+        .attr("font-size", "10px")
+        .attr("fill", color(vehicleGroup.vehicleType))
+        .attr("font-weight", "bold")
+        .text(`${point.hour}:00`)
+        .style("opacity", 0)
+        .transition()
+        .duration(500)
+        .delay(2000 + index * 300 + 1000 + peakIndex * 200)
+        .style("opacity", 1);
+    });
+
+  }, index * 300);
+});
+
+// Legend - moved to left side
+const legend = svg.append("g").attr("transform", "translate(20, 150)");
+legend.append("rect").attr("width", 200).attr("height", vehicleTypes.length * 25 + 30).attr("fill", "white").attr("stroke", "gray");
+
+legend.append("text").attr("x", 10).attr("y", 25).text("Vehicle Types").attr("font-weight", "bold");
+vehicleTypes.forEach((vehicleType, i) => {
+  legend.append("line")
+    .attr("x1", 10).attr("y1", 30 + i * 25)
+    .attr("x2", 25).attr("y2", 30 + i * 25)
+    .attr("stroke", color(vehicleType))
+    .attr("stroke-width", 3);
+  legend.append("text")
+    .attr("x", 30)
+    .attr("y", 35 + i * 25)
+    .attr("font-size", "11px")
+    .text(vehicleType); // Show full vehicle type name
+});
+</script>
+</body>
+</html>

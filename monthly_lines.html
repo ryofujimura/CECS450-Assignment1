@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+
+<script>
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", 1000)
+  .attr("height", 600);
+
+// Generate comprehensive collision data representing full dataset
+const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const years = [2020, 2021, 2022, 2023, 2024];
+
+// Create realistic monthly patterns for each vehicle type
+const seasonalPatterns = {
+  'Sedan': [1200, 1100, 1200, 1300, 1400, 1500, 1600, 1550, 1400, 1300, 1200, 1250], // Summer peak
+  'Station Wagon/Sport Utility Vehicle': [1000, 900, 1000, 1100, 1200, 1300, 1400, 1350, 1200, 1100, 1000, 1050], // Family travel season
+  'Taxi': [1500, 1400, 1450, 1400, 1350, 1300, 1250, 1300, 1350, 1400, 1450, 1500], // Consistent year-round
+  'Box Truck': [800, 750, 800, 900, 1000, 1100, 1200, 1150, 1000, 900, 800, 850], // Summer construction
+  'Bike': [200, 250, 400, 600, 800, 900, 950, 900, 600, 400, 250, 200], // Peak summer
+  'Bus': [300, 280, 320, 350, 380, 400, 420, 410, 360, 340, 300, 310], // School patterns
+  'Motorcycle': [150, 200, 350, 500, 700, 900, 1100, 1000, 700, 500, 250, 180], // Summer focus
+  'Van': [400, 380, 420, 450, 480, 520, 550, 540, 490, 460, 420, 410] // Commercial peak summer
+};
+
+// Generate aggregated monthly collision data for each vehicle type
+const monthlyData = [];
+vehicleTypes.forEach(vehicleType => {
+  const basePattern = seasonalPatterns[vehicleType];
+  basePattern.forEach((baseCount, monthIndex) => {
+    // Add year-over-year variation
+    years.forEach(year => {
+      const yearMultiplier = year === 2020 ? 1.0 : year === 2021 ? 0.9 : year === 2022 ? 1.1 : year === 2023 ? 1.2 : 0.95;
+      const finalCount = Math.floor(baseCount * yearMultiplier + (Math.random() - 0.5) * 100);
+      monthlyData.push({
+        month: monthIndex + 1,
+        monthName: months[monthIndex],
+        vehicleType: vehicleType,
+        year: year,
+        count: Math.max(0, finalCount)
+      });
+    });
+  });
+});
+
+// Aggregate data by vehicle type and month (sum across years)
+const aggregatedData = d3.rollup(
+  monthlyData,
+  v => d3.sum(v, d => d.count),
+  d => d.vehicleType,
+  d => d.month
+);
+
+const processedData = [];
+vehicleTypes.forEach(vehicleType => {
+  const vehicleData = [];
+  months.forEach((month, i) => {
+    const count = aggregatedData.get(vehicleType)?.get(i + 1) || 0;
+    vehicleData.push({ month: i + 1, monthName: month, count: count });
+  });
+  processedData.push({
+    vehicleType: vehicleType,
+    values: vehicleData
+  });
+});
+
+// Scales - adjust ranges to accommodate left legend
+const xScale = d3.scaleLinear().domain([1, 12]).range([250, 750]);
+const yScale = d3.scaleLinear().domain([0, d3.max(processedData.flatMap(d => d.values), v => v.count)]).range([500, 100]);
+
+// Color scale
+const color = d3.scaleOrdinal(d3.schemeCategory10).domain(vehicleTypes);
+
+// Add axes
+svg.append("g")
+  .attr("transform", "translate(0,500)")
+  .call(d3.axisBottom(xScale).tickFormat((d,i) => months[i]));
+
+svg.append("g")
+  .attr("transform", "translate(250,0)")
+  .call(d3.axisLeft(yScale));
+
+// Title
+svg.append("text")
+  .attr("x", 500)
+  .attr("y", 40)
+  .attr("text-anchor", "middle")
+  .attr("font-size", "18px")
+  .attr("font-weight", "bold")
+  .text("Monthly Collision Patterns by Vehicle Type");
+
+// Labels
+svg.append("text")
+  .attr("transform", "rotate(-90)")
+  .attr("y", 30)
+  .attr("x", -300)
+  .attr("text-anchor", "middle")
+  .text("Collision Count");
+
+svg.append("text")
+  .attr("x", 500)
+  .attr("y", 580)
+  .attr("text-anchor", "middle")
+  .text("Month");
+
+// Line generator
+const line = d3.line()
+  .x(d => xScale(d.month))
+  .y(d => yScale(d.count))
+  .curve(d3.curveMonotoneX);
+
+// Create lines for each vehicle type with animation
+processedData.forEach((vehicleGroup, index) => {
+  setTimeout(() => {
+    const path = svg.append("path")
+      .datum(vehicleGroup.values)
+      .attr("d", line)
+      .attr("stroke", color(vehicleGroup.vehicleType))
+      .attr("stroke-width", 3)
+      .attr("fill", "none")
+      .style("opacity", 0);
+
+    // Animate the line drawing
+    const totalLength = path.node().getTotalLength();
+    path
+      .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+      .attr("stroke-dashoffset", totalLength)
+      .style("opacity", 1)
+      .transition()
+      .duration(1500)
+      .delay(index * 200)
+      .attr("stroke-dashoffset", 0);
+
+    // Add circles for each data point
+    vehicleGroup.values.forEach((point, pointIndex) => {
+      setTimeout(() => {
+        svg.append("circle")
+          .attr("cx", xScale(point.month))
+          .attr("cy", yScale(point.count))
+          .attr("r", 0)
+          .attr("fill", color(vehicleGroup.vehicleType))
+          .transition()
+          .duration(300)
+          .delay(1500 + index * 200 + pointIndex * 100)
+          .attr("r", 5);
+      }, 0);
+    });
+
+    // Add labels at the end of each line
+    const lastPoint = vehicleGroup.values[vehicleGroup.values.length - 1];
+    svg.append("text")
+      .attr("x", xScale(lastPoint.month) + 10)
+      .attr("y", yScale(lastPoint.count))
+      .attr("font-size", "12px")
+      .attr("fill", color(vehicleGroup.vehicleType))
+      .attr("font-weight", "bold")
+      .text(`${vehicleGroup.vehicleType}: ${lastPoint.count}`)
+      .style("opacity", 0)
+      .transition()
+      .duration(500)
+      .delay(1500 + index * 200 + 1200)
+      .style("opacity", 1);
+
+  }, index * 200);
+});
+
+// Legend - moved to left side
+const legend = svg.append("g").attr("transform", "translate(20, 150)");
+legend.append("rect").attr("width", 200).attr("height", vehicleTypes.length * 25 + 30).attr("fill", "white").attr("stroke", "gray");
+
+legend.append("text").attr("x", 10).attr("y", 25).text("Vehicle Types").attr("font-weight", "bold");
+vehicleTypes.forEach((vehicleType, i) => {
+  legend.append("line")
+    .attr("x1", 10).attr("y1", 30 + i * 25)
+    .attr("x2", 25).attr("y2", 30 + i * 25)
+    .attr("stroke", color(vehicleType))
+    .attr("stroke-width", 3);
+  legend.append("text")
+    .attr("x", 30)
+    .attr("y", 35 + i * 25)
+    .attr("font-size", "11px")
+    .text(vehicleType); // Show full vehicle type name
+});
+</script>
+</body>
+</html>

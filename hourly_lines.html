@@ -2,6 +2,19 @@
 <html>
 <head>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 1000;
+    }
+  </style>
 </head>
 <body>
 <div id="chart"></div>
@@ -12,52 +25,25 @@ const svg = d3.select("#chart")
   .attr("width", 1000)
   .attr("height", 600);
 
+// Create tooltip
+const tooltip = d3.select("body").append("div")
+  .attr("class", "tooltip");
+
 // Generate comprehensive hourly collision data
-const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck', 'Bike', 'Bus', 'Motorcycle', 'Van'];
+const vehicleTypes = ['Sedan', 'Station Wagon/Sport Utility Vehicle', 'Taxi', 'Box Truck']
+];
 const hours = d3.range(24);
 
 // Create realistic hourly patterns for each vehicle type
 const hourlyPatterns = {
-  'Sedan': {
-    peak: [8, 17, 18, 19], // Rush hours
-    base: 600,
-    variation: 400
-  },
-  'Station Wagon/Sport Utility Vehicle': {
-    peak: [7, 8, 16, 17, 18], // Family commuting
-    base: 500,
-    variation: 300
-  },
-  'Taxi': {
-    peak: [12, 13, 14, 15, 23, 0, 1, 2], // Business hours and late night
-    base: 800,
-    variation: 200
-  },
-  'Box Truck': {
-    peak: [9, 10, 11, 14, 15, 16], // Commercial hours
-    base: 300,
-    variation: 150
-  },
-  'Bike': {
-    peak: [7, 8, 17, 18], // Cycling hours
-    base: 200,
-    variation: 300
-  },
-  'Bus': {
-    peak: [7, 8, 14, 15, 16, 17], // School hours
-    base: 250,
-    variation: 100
-  },
-  'Motorcycle': {
-    peak: [17, 18, 19, 20, 21], // Evening riding
-    base: 150,
-    variation: 250
-  },
-  'Van': {
-    peak: [9, 10, 14, 15, 16], // Commercial delivery
-    base: 400,
-    variation: 200
-  }
+  'Sedan': { peak: [8, 17, 18, 19], base: 600, variation: 400 },
+  'Station Wagon/Sport Utility Vehicle': { peak: [7, 8, 16, 17, 18], base: 500, variation: 300 },
+  'Taxi': { peak: [12, 13, 14, 15, 23, 0, 1, 2], base: 800, variation: 200 },
+  'Box Truck': { peak: [9, 10, 11, 14, 15, 16], base: 300, variation: 150 },
+  'Bike': { peak: [7, 8, 17, 18], base: 200, variation: 300 },
+  'Bus': { peak: [7, 8, 14, 15, 16, 17], base: 250, variation: 100 },
+  'Motorcycle': { peak: [17, 18, 19, 20, 21], base: 150, variation: 250 },
+  'Van': { peak: [9, 10, 14, 15, 16], base: 400, variation: 200 }
 };
 
 // Generate hourly collision data for each vehicle type
@@ -162,44 +148,40 @@ hourlyData.forEach((vehicleGroup, index) => {
       .delay(index * 300)
       .attr("stroke-dashoffset", 0);
 
-    // Add circles for key data points
+    // Add interactive circles for each data point with tooltips
     vehicleGroup.values.forEach((point, pointIndex) => {
-      // Only show circles for significant peaks
-      if (point.count > d3.mean(vehicleGroup.values.map(v => v.count)) * 1.2) {
-        setTimeout(() => {
-          group.append("circle")
-            .attr("cx", xScale(point.hour))
-            .attr("cy", yScale(point.count))
-            .attr("r", 0)
-            .attr("fill", color(vehicleGroup.vehicleType))
-            .transition()
-            .duration(300)
-            .delay(2000 + index * 300 + pointIndex * 50)
-            .attr("r", 6);
-        }, 0);
-      }
-    });
-
-    // Add peak hour labels
-    const peaks = vehicleGroup.values
-      .map((d, i) => ({ hour: i, count: d.count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 2); // Top 2 peaks
-
-    peaks.forEach((peak, peakIndex) => {
-      const point = vehicleGroup.values[peak.hour];
-      group.append("text")
-        .attr("x", xScale(point.hour) - 30)
-        .attr("y", yScale(point.count) - 10)
-        .attr("font-size", "10px")
-        .attr("fill", color(vehicleGroup.vehicleType))
-        .attr("font-weight", "bold")
-        .text(`${point.hour}:00`)
-        .style("opacity", 0)
-        .transition()
-        .duration(500)
-        .delay(2000 + index * 300 + 1000 + peakIndex * 200)
-        .style("opacity", 1);
+      setTimeout(() => {
+        group.append("circle")
+          .attr("cx", xScale(point.hour))
+          .attr("cy", yScale(point.count))
+          .attr("r", 0)
+          .attr("fill", color(vehicleGroup.vehicleType))
+          .attr("stroke", "white")
+          .attr("stroke-width", 2)
+          .transition()
+          .duration(300)
+          .delay(2000 + index * 300 + pointIndex * 50)
+          .attr("r", 4)
+          .on("mouseover", function(event) {
+            // Show tooltip
+            tooltip.transition().duration(200).style("opacity", 1);
+            tooltip.html(`
+              <strong>${vehicleGroup.vehicleType}</strong><br/>
+              Hour: ${point.hour}:00<br/>
+              Collisions: ${point.count}
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 30) + "px");
+          })
+          .on("mousemove", function(event) {
+            tooltip
+              .style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY - 30) + "px");
+          })
+          .on("mouseout", function() {
+            tooltip.transition().duration(200).style("opacity", 0);
+          });
+      }, 0);
     });
 
   }, index * 300);

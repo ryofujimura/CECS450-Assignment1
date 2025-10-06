@@ -1,0 +1,61 @@
+import pandas as pd
+
+#LOADING DATASET
+#path needs to be changed for others to use
+raw_data = pd.read_csv("/Users/suzettemejia/Documents/GitHub/CECS450-Assignment1/Motor_Vehicle_Collisions_-_Crashes.csv")
+
+#GETTING FAMILIAR WITH DATASET
+print(raw_data.shape) #total rows and columns
+print(raw_data.columns)
+
+print(raw_data.head(10))
+
+
+#DATA CLEANING
+#plan: drop columns and extract dataset by crash date year
+#thinking as of now to keep crash date, latitude, longitude, location, contributing factor vehicle 1, 2, vehicle type code 1,2
+
+raw_data['Converted Date'] = pd.to_datetime(raw_data['CRASH DATE'])
+raw_data['YEAR'] = raw_data['Converted Date'].dt.year
+raw_data['MONTH'] = raw_data['Converted Date'].dt.month
+raw_data['DAY'] = raw_data['Converted Date'].dt.day
+
+#sorted data by date and time
+raw_data.sort_values(by= ['Converted Date', 'CRASH TIME'], inplace=True)
+
+print(raw_data['YEAR'].nunique()) #14 years of data
+print(raw_data['YEAR'].value_counts()) #number of crashes in each year
+
+#keep data within 2020-2024
+years = [2020, 2021, 2022, 2023, 2024]
+filtered_year = raw_data[raw_data['YEAR'].isin(years)]
+print(filtered_year.shape) #(459232, 31)
+
+print(filtered_year['CONTRIBUTING FACTOR VEHICLE 1'].isnull().sum()) #2845 null values in column
+print(filtered_year['CONTRIBUTING FACTOR VEHICLE 1'].value_counts()) #Unspecified 112761
+
+
+print(filtered_year['VEHICLE TYPE CODE 1'].isnull().sum()) 
+print(filtered_year['VEHICLE TYPE CODE 1'].value_counts())
+
+filtered_year.dropna(subset='CONTRIBUTING FACTOR VEHICLE 1', inplace=True) #dropped null values
+filtered_year = filtered_year[filtered_year['CONTRIBUTING FACTOR VEHICLE 1'] != 'Unspecified']
+print(filtered_year.shape)
+print(filtered_year['CONTRIBUTING FACTOR VEHICLE 1'].value_counts()) 
+
+filtered_year.dropna(subset='VEHICLE TYPE CODE 1', inplace=True) #dropped null values
+print(filtered_year.shape)
+
+#changed our list of columns to keep
+columns_to_keep = ['CRASH DATE', 'CRASH TIME', 'CONTRIBUTING FACTOR VEHICLE 1', 'VEHICLE TYPE CODE 1', 'MONTH', 'DAY', 'YEAR']
+filtered_columns = filtered_year[columns_to_keep]
+
+# print(filtered_columns.shape)
+# print(filtered_columns.isna().sum())
+# print(filtered_columns.head(10))
+# print(filtered_columns.tail(10))
+
+#CONVERT FINAL DATAFRAME TO CSV
+filtered_columns.to_csv('Motor_Vehicle_Collisions_2020-2024.csv', index=False)
+
+

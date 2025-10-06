@@ -1,6 +1,7 @@
 
 const margin = { top: 100, right: 400, bottom: 100, left: 420 };
 
+
 const container = d3.select("#chart");
 if (!container.node()) {
   throw new Error("No container element with id #chart found in the DOM.");
@@ -17,11 +18,13 @@ const svg = container
   .append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
+
 const tooltip = d3.select("body").append("div")
   .attr("class", "tooltip")
   .style("position", "absolute")
   .style("pointer-events", "none")
   .style("opacity", 0);
+
 
 fetch('Motor_Vehicle_Collisions_2020-2024.csv')
   .then(response => {
@@ -32,7 +35,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
     const csvData = d3.csvParse(text);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-
+    
     const vehicleTypeCounts = d3.rollup(csvData, v => v.length, d => d['VEHICLE TYPE CODE 1']);
     const sortedVehicleTypes = Array.from(vehicleTypeCounts.entries())
       .sort((a, b) => b[1] - a[1])
@@ -75,17 +78,17 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
     initializeChart();
 
     function initializeChart() {
-      
+      // scales
       const xScale = d3.scaleLinear().domain([1, 12]).range([0, width]);
       const maxCollisions = d3.max(processedData.flatMap(d => d.values.map(v => v.count))) || 1;
       let yScale = d3.scaleLinear().domain([0, maxCollisions]).range([height, 0]);
 
-      
+      // color scale
       const vibrantColors = ["#33b3e5", "#ff4444", "#98e643", "#ffbb33", "#aa66cc", "#43e698", "#e6435d", "#5de6e6"];
       const color = d3.scaleOrdinal().domain(sortedVehicleTypes).range(vibrantColors);
 
-    
-      const vehicleImageMap = { // image map
+      // vehicle images map 
+      const vehicleImageMap = {
         'Sedan': 'sedan.png',
         'Station Wagon/Sport Utility Vehicle': 'station_wagon.png',
         'Taxi': 'taxi.png',
@@ -132,7 +135,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         .attr("text-anchor", "middle")
         .text("Month");
 
-      
+      // Zoom controls (right)
       const zoomControls = svg.append("g").attr("transform", `translate(${width + 40}, 0)`);
       zoomControls.append("rect").attr("width", 280).attr("height", 50).attr("fill", "white").attr("stroke", "gray").attr("stroke-width", 1).attr("rx", 8);
       zoomControls.append("text").attr("x", 10).attr("y", 15).attr("font-size", "10px").attr("font-weight", "bold").text("Y-Axis Zoom");
@@ -174,7 +177,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       processedData.forEach((vehicleGroup, index) => {
         setTimeout(() => {
           const group = svg.append("g").attr("class", `vehicle-group-${index}`);
-          
+          // Path (bind numeric array via datum)
           const path = group.append("path")
             .datum(vehicleGroup.values)
             .attr("d", line)
@@ -190,7 +193,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
 
           lineGroups.push(group);
 
-          
+        
           const totalLength = path.node().getTotalLength();
           path
             .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
@@ -201,7 +204,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
             .delay(index * 200)
             .attr("stroke-dashoffset", 0)
             .on("end", () => {
-              
+              // once the entry animation finishes, clear dasharray so updates are 'clean'
               path.attr("stroke-dasharray", null);
             });
 
@@ -238,7 +241,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         }, index * 120);
       });
 
-      
+    
       const legend = svg.append("g").attr("transform", `translate(${-margin.left + 40}, 0)`);
       legend.append("rect").attr("class", "panel").attr("width", 270).attr("height", 360).attr("rx", 8);
       legend.append("text").attr("class", "panel-title").attr("x", 10).attr("y", 30).text("Vehicle Types");
@@ -305,7 +308,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         d3.select('#vehicle-image').transition().duration(200).style('opacity', 0);
       }
 
-      )
+      
       function updateChartScale() {
         
         yAxis.transition().duration(200).call(d3.axisLeft(yScale));
@@ -350,4 +353,3 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       .style("font-size", "18px")
       .text("Error loading collision data");
   });
-

@@ -238,7 +238,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
             });
 
           
-          circles.transition().duration(300).delay(3000 + index * 120).attr("r", 5);
+          circles.transition().duration(500).delay(3000 + index * 120).attr("r", 5);
         }, index * 120);
       });
 

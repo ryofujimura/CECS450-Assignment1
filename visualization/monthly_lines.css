@@ -1,0 +1,118 @@
+
+/* modern theme palete*/
+:root {
+  --background-color: #1c2128; 
+  --card-background: #22272e; 
+  --main-text-color: #e6edf3;  /* White-ish for main text */
+  --subtle-text-color: #7d8590; /* Gray for subtitles and labels */
+  --border-color: #8b97a4;     /* Subtle border/divider color */
+  --glow-color: rgba(56, 139, 253, 0.1); 
+}
+
+/* General body text and labels */
+body, text {
+  font-family: 'Inter', sans-serif;
+}
+
+/* --- LAYOUT & GENERAL STYLING --- */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--main-text-color);
+}
+
+#chart {
+  width: 100%;
+  height: 100%;
+}
+
+.tooltip {
+  background: #30363d;
+  color: var(--main-text-color);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+/* --- CHART-SPECIFIC STYLING --- */
+.chart-title {
+  font-size: 20px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--main-text-color);
+}
+
+.axis-label {
+  font-size: 16px;
+  text-anchor: middle;
+  fill: var(--main-text-color);
+  font-weight: 300;
+}
+
+.tick text {
+  font-size: 11px;
+  fill: var(--subtle-text-color);
+}
+
+.tick line, .domain {
+  stroke: var(--border-color); 
+  stroke-dasharray: none; 
+}
+
+/* --- PANELS & LEGEND --- */
+.panel {
+  fill: var(--card-background);
+  stroke: var(--border-color);
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--main-text-color);
+}
+
+.panel-subtitle {
+  font-size: 11px;
+  fill: var(--subtle-text-color);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.legend-item {
+  cursor: pointer;
+  font-size: 13px;
+  fill: var(--subtle-text-color);
+  transition: fill 0.2s ease-in-out;
+}
+
+.legend-item:hover {
+  fill: var(--main-text-color);
+}
+
+.info-content {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--main-text-color);
+}
+
+.info-details {
+  font-size: 13px;
+  font-weight: 400;
+  fill: var(--main-text-color); 
+  white-space: pre-wrap;
+  line-height: 1.6;
+}

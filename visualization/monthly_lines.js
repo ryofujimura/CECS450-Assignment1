@@ -1,4 +1,3 @@
-
 const margin = { top: 100, right: 400, bottom: 100, left: 420 };
 
 // Getting dimensions for the chart
@@ -55,6 +54,26 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
           count: 1
         });
       }
+    });
+
+    // find the most frequent contributing factor 
+    const factorLookup = new Map();
+    sortedVehicleTypes.forEach(vehicleType => {
+    const factors = csvData
+    .filter(d => d['VEHICLE TYPE CODE 1'] === vehicleType)
+    .map(d => d['CONTRIBUTING FACTOR VEHICLE 1'].trim())
+    .filter(f => f && f.toLowerCase() !== 'unspecified'); // Ignore 'Unspecified'
+
+    if (factors.length > 0) {
+    // Rollup factors to find the most frequent one
+    const factorCounts = d3.rollup(factors, v => v.length, d => d);
+    const mostFrequentFactor = Array.from(factorCounts.entries())
+      .sort((a, b) => b[1] - a[1])[0][0]; // [0] is the factor name
+      
+    factorLookup.set(vehicleType, mostFrequentFactor);
+    } else {
+    factorLookup.set(vehicleType, "N/A");
+    }
     });
 
     // Aggregate data by vehicle type and month (sum across years)
@@ -266,38 +285,52 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       const infoContent = infoBox.append("text").attr("class", "info-content").attr("x", 10).attr("y", 85);
       const infoDetails = infoBox.append("text").attr("class", "info-details").attr("x", 10).attr("y", 110);
       // Right Info Box (Positioned on the right)
-      const vehicleImage = infoBox.append('image').attr('id', 'vehicle-image').attr('x', 10).attr('y', 100).attr('width', 290).attr('height', 290).style('opacity', 0).attr('href', '').attr('xlink:href', '');
+      const vehicleImage = infoBox.append('image').attr('id', 'vehicle-image').attr('x', 10).attr('y', 120).attr('width', 290).attr('height', 290).style('opacity', 0).attr('href', '').attr('xlink:href', '');
 
       // Functions for highlighting
-      function highlightVehicle(vehicleType) {
-        const index = sortedVehicleTypes.indexOf(vehicleType);
-        lineGroups.forEach((group, groupIndex) => {
-          group.style("opacity", groupIndex === index ? 1 : 0.15);
-        });
+      // Functions for highlighting
+function highlightVehicle(vehicleType){
+  const index = sortedVehicleTypes.indexOf(vehicleType);
+  lineGroups.forEach((group, groupIndex) => {
+    group.style("opacity", groupIndex === index ? 1 : 0.15); // Changed to 0.15 for better dimming
+  });
+  
+  const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
+  const totalCollisions = d3.sum(vehicleData.values, v => v.count);
+  const avgCollisions = Math.round(totalCollisions / 12);
+  const peakMonth = vehicleData.values.reduce((max, curr) => (curr.count > max.count ? curr : max), vehicleData.values[0]);
+  
+  // --- START MODIFICATION FOR FACTOR ---
+  const topFactor = factorLookup.get(vehicleType) || 'Not Determined'; 
+  // --- END MODIFICATION FOR FACTOR ---
 
-        const vehicleData = processedData.find(d => d.vehicleType === vehicleType);
-        const totalCollisions = d3.sum(vehicleData.values, v => v.count);
-        const avgCollisions = Math.round(totalCollisions / 12);
-        const peakMonth = vehicleData.values.reduce((max, curr) => (curr.count > max.count ? curr : max), vehicleData.values[0]);
+  infoContent.text(`${totalCollisions.toLocaleString()} total`);
+  infoDetails.selectAll("*").remove(); // Clear previous text
 
-        infoContent.text(`${totalCollisions.toLocaleString()} total`);
-        infoDetails.selectAll("*").remove();
+  const avgLine = infoDetails.append('tspan').attr('x', 10).attr('dy', '1.5em');
+  avgLine.append('tspan').style('font-weight', '700').text('Avg/month: ');
+  avgLine.append('tspan').style('font-weight', '400').text(avgCollisions.toLocaleString());
 
-        const avgLine = infoDetails.append('tspan').attr('x', 10).attr('dy', '1.5em');
-        avgLine.append('tspan').style('font-weight', '700').text('Avg/month: ');
-        avgLine.append('tspan').style('font-weight', '400').text(avgCollisions.toLocaleString());
+  // Add the Contributing Factor line
+  const factorLine = infoDetails.append('tspan').attr('x', 10).attr('dy', '2em');
+  factorLine.append('tspan').style('font-weight', '700').text('Top Factor: ');
+  factorLine.append('tspan').style('font-weight', '400').text(topFactor);
 
-        const peakLine = infoDetails.append('tspan').attr('x', 10).attr('dy', '2em');
-        peakLine.append('tspan').style('font-weight', '700').text('Peak: ');
-        peakLine.append('tspan').style('font-weight', '400').text(`${peakMonth.monthName} (${peakMonth.count.toLocaleString()})`);
+  const peakLine = infoDetails.append('tspan').attr('x', 10).attr('dy', '2em');
+  peakLine.append('tspan').style('font-weight', '700').text('Peak: ');
+  peakLine.append('tspan').style('font-weight', '400').text(`${peakMonth.monthName} (${peakMonth.count.toLocaleString()})`);
 
-        // Show and update the vehicle images
-        const imageName = vehicleImageMap[vehicleType];
-        if (imageName) {
-          const url = `images/${imageName}`;
-          d3.select('#vehicle-image').attr('href', url).attr('xlink:href', url).transition().duration(200).style('opacity', 1);
-        }
-      }
+  // Show and update the vehicle image
+  const imageName = vehicleImageMap[vehicleType];
+  if (imageName) {
+    const url = `images/${imageName}`;
+    d3.select('#vehicle-image')
+      .attr('href', url)
+      .attr('xlink:href', url)
+      .transition().duration(200)
+      .style('opacity', 1);
+  }
+}
 
       function resetHighlights() {
         lineGroups.forEach(group => group.style("opacity", 1));

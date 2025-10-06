@@ -201,7 +201,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
             .attr("stroke-dashoffset", totalLength)
             .style("opacity", 1)
             .transition()
-            .duration(1500)
+            .duration(3000)
             .delay(index * 200)
             .attr("stroke-dashoffset", 0)
             .on("end", () => {
@@ -238,7 +238,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
             });
 
           
-          circles.transition().duration(300).delay(1500 + index * 120).attr("r", 5);
+          circles.transition().duration(300).delay(3000 + index * 120).attr("r", 5);
         }, index * 120);
       });
 

@@ -1,7 +1,7 @@
 
 const margin = { top: 100, right: 400, bottom: 100, left: 420 };
 
-
+// Getting dimensions for the chart
 const container = d3.select("#chart");
 if (!container.node()) {
   throw new Error("No container element with id #chart found in the DOM.");
@@ -10,7 +10,7 @@ const containerRect = container.node().getBoundingClientRect();
 const width = containerRect.width - margin.left - margin.right;
 const height = containerRect.height - margin.top - margin.bottom;
 
-
+// Create the main scalable vector graphisc (SVG) canvas and a group element for the chart area
 const svg = container
   .append("svg")
   .attr("width", containerRect.width)
@@ -18,14 +18,14 @@ const svg = container
   .append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-
+// Create tooltips
 const tooltip = d3.select("body").append("div")
   .attr("class", "tooltip")
   .style("position", "absolute")
   .style("pointer-events", "none")
   .style("opacity", 0);
 
-
+// Load CSV data
 fetch('Motor_Vehicle_Collisions_2020-2024.csv')
   .then(response => {
     if (!response.ok) throw new Error("Network response was not ok");
@@ -35,14 +35,14 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
     const csvData = d3.csvParse(text);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    
+    // Get vehicle types from CSV 
     const vehicleTypeCounts = d3.rollup(csvData, v => v.length, d => d['VEHICLE TYPE CODE 1']);
     const sortedVehicleTypes = Array.from(vehicleTypeCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(d => d[0]);
 
-    
+    // Process collision data
     const monthlyData = [];
     csvData.forEach(d => {
       const monthNum = parseInt(d['MONTH'], 10);
@@ -57,10 +57,10 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       }
     });
 
-    
+    // Aggregate data by vehicle type and month (sum across years)
     const aggregatedData = d3.rollup(
       monthlyData,
-      v => v.length,
+      v => v.length, // Count the collisions
       d => d.vehicleType,
       d => d.month
     );
@@ -78,16 +78,17 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
     initializeChart();
 
     function initializeChart() {
-      // scales
+      // scaling the chart
       const xScale = d3.scaleLinear().domain([1, 12]).range([0, width]);
       const maxCollisions = d3.max(processedData.flatMap(d => d.values.map(v => v.count))) || 1;
+      // Initialize zoomed out so that everything is visible
       let yScale = d3.scaleLinear().domain([0, maxCollisions]).range([height, 0]);
 
       // color scale
       const vibrantColors = ["#33b3e5", "#ff4444", "#98e643", "#ffbb33", "#aa66cc", "#43e698", "#e6435d", "#5de6e6"];
       const color = d3.scaleOrdinal().domain(sortedVehicleTypes).range(vibrantColors);
 
-      // vehicle images map 
+      // images of the top 8 vehicles
       const vehicleImageMap = {
         'Sedan': 'sedan.png',
         'Station Wagon/Sport Utility Vehicle': 'station_wagon.png',
@@ -99,7 +100,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         'Motorcycle': 'motorcycle.png'
       };
 
-      
+      // Add axes
       const xAxis = svg.append("g")
         .attr("transform", `translate(0, ${height})`)
         .call(d3.axisBottom(xScale)
@@ -107,11 +108,10 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
           .tickFormat(d => months[d - 1])
         );
 
-      
       const yAxis = svg.append("g")
         .call(d3.axisLeft(yScale));
 
-      
+       // Title 
       svg.append("text")
         .attr("class", "chart-title")
         .attr("x", width / 2)
@@ -120,6 +120,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         .style("font-size", "18px")
         .text("Monthly Collision Patterns (2020-2024 Total) by Vehicle Type in NYC");
 
+      // Labels 
       svg.append("text")
         .attr("class", "axis-label")
         .attr("transform", "rotate(-90)")
@@ -165,7 +166,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       const zoomLabel = zoomControls.append("text").attr("x", 10).attr("y", 45).attr("font-size", "8px").attr("fill", "#666")
         .text(`${(maxCollisions / yScale.domain()[1]).toFixed(1)}x`);
 
-      
+      // Line generator
       const line = d3.line()
         .x(d => xScale(d.month))
         .y(d => yScale(d.count))
@@ -208,7 +209,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
               path.attr("stroke-dasharray", null);
             });
 
-          
+           // Add interactive circles
           const circles = group.selectAll("circle.point")
             .data(vehicleGroup.values)
             .enter()
@@ -241,7 +242,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         }, index * 120);
       });
 
-    
+      // Left Legend with vehicle names and their colors
       const legend = svg.append("g").attr("transform", `translate(${-margin.left + 40}, 0)`);
       legend.append("rect").attr("class", "panel").attr("width", 270).attr("height", 360).attr("rx", 8);
       legend.append("text").attr("class", "panel-title").attr("x", 10).attr("y", 30).text("Vehicle Types");
@@ -251,6 +252,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         const legendGroup = legend.append("g").attr("class", `legend-item legend-item-${i}`).style("cursor", "pointer");
         legendGroup.append("line").attr("x1", 10).attr("y1", 75 + i * 30).attr("x2", 25).attr("y2", 75 + i * 30).attr("stroke", color(vehicleType)).attr("stroke-width", 3);
         legendGroup.append("text").attr("x", 35).attr("y", 80 + i * 30).text(vehicleType);
+        // highlight the vehicle when hovered over
         legendGroup.append("rect").attr("x", 5).attr("y", 65 + i * 30).attr("width", 190).attr("height", 30).attr("fill", "transparent")
           .on("mouseover", () => highlightVehicle(vehicleType))
           .on("mouseout", resetHighlights);
@@ -260,11 +262,13 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
       infoBox.append("rect").attr("class", "panel").attr("width", 300).attr("height", 360).attr("rx", 8);
       infoBox.append("text").attr("class", "panel-title").attr("x", 10).attr("y", 30).text("Collision Stats");
       infoBox.append("text").attr("class", "panel-subtitle").attr("x", 10).attr("y", 55).text("Sum Across 5 Years");
+      // Right Info Box (Positioned on the right)
       const infoContent = infoBox.append("text").attr("class", "info-content").attr("x", 10).attr("y", 85);
       const infoDetails = infoBox.append("text").attr("class", "info-details").attr("x", 10).attr("y", 110);
+      // Right Info Box (Positioned on the right)
       const vehicleImage = infoBox.append('image').attr('id', 'vehicle-image').attr('x', 10).attr('y', 100).attr('width', 290).attr('height', 290).style('opacity', 0).attr('href', '').attr('xlink:href', '');
 
-      
+      // Functions for highlighting
       function highlightVehicle(vehicleType) {
         const index = sortedVehicleTypes.indexOf(vehicleType);
         lineGroups.forEach((group, groupIndex) => {
@@ -287,6 +291,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
         peakLine.append('tspan').style('font-weight', '700').text('Peak: ');
         peakLine.append('tspan').style('font-weight', '400').text(`${peakMonth.monthName} (${peakMonth.count.toLocaleString()})`);
 
+        // Show and update the vehicle images
         const imageName = vehicleImageMap[vehicleType];
         if (imageName) {
           const url = `images/${imageName}`;
@@ -305,27 +310,28 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
           line.append('tspan').style("font-weight", "700").text(`${vehicleGroup.vehicleType}: `);
           line.append('tspan').style("font-weight", "400").text(total.toLocaleString());
         });
+        // Hide the vehicle image
         d3.select('#vehicle-image').transition().duration(200).style('opacity', 0);
       }
 
-      
+      // Function to update chart scale when zooming
       function updateChartScale() {
         
         yAxis.transition().duration(200).call(d3.axisLeft(yScale));
 
-        
+        // Update all lines and circles
         lineGroups.forEach((group, index) => {
           const vehicleGroup = processedData[index];
 
           
           group.interrupt();
 
-          
+          // Update the line path
           group.select("path")
             .datum(vehicleGroup.values)
             .attr("d", line);
 
-          
+          // Update the circles' positions
           group.selectAll("circle.point")
             .data(vehicleGroup.values)
             .transition()
@@ -334,7 +340,7 @@ fetch('Motor_Vehicle_Collisions_2020-2024.csv')
             .attr("cy", d => yScale(d.count));
         });
 
-        
+        // Update zoom label
         const currentZoomFactor = (maxCollisions / yScale.domain()[1]) || 1;
         zoomLabel.text(`${currentZoomFactor.toFixed(1)}x`);
       }
